@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Vision Australia – Product Recommender (Proof of Concept)</title>
+<meta name="description" content="Proof of concept: find night vision and thermal imaging devices by budget and use.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   Design tokens
+   Brand colours sampled from the supplied logo:
+   navy #2D3292, blue #0070BC, cyan #29ABE3
+   ========================================================= */
+:root{
+  --navy:#2D3292; --blue:#0070BC; --cyan:#29ABE3;
+  --ink:#16181D;          /* charcoal page base */
+  --panel:#1F2229;        /* raised dark surface */
+  --panel-2:#272B33;      /* inputs / chips on dark */
+  --line:#353A44;         /* dark hairlines */
+  --text:#F4F6F9; --muted:#A3ACBA; --faint:#6F7886;
+  --paper:#FFFFFF; --mist:#F1F4F8; --paper-line:#DDE3EA; --paper-text:#1B1F27; --paper-muted:#5A6473;
+  --ok:#3DBE84; --warn:#E9A23B; --over:#E2635B;
+  --heat:#F5B041;
+  --r-s:6px; --r-m:10px; --r-l:16px;
+  --display:"Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body:"Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --wrap:1220px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:84px}
+body{margin:0; background:var(--ink); color:var(--text); font:400 16px/1.55 var(--body); -webkit-font-smoothing:antialiased}
+img{max-width:100%; display:block}
+a{color:inherit}
+button,input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:2px; border-radius:4px}
+.wrap{max-width:var(--wrap); margin:0 auto; padding:0 24px}
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+h1,h2,h3,h4{font-family:var(--display); font-weight:600; letter-spacing:-.005em; margin:0}
+h2{font-size:clamp(28px,3.4vw,40px); line-height:1.1}
+h3{font-size:21px; line-height:1.2}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid transparent; border-radius:var(--r-s);
+  padding:12px 20px; font-weight:600; font-size:15px; cursor:pointer; text-decoration:none; transition:background .15s, border-color .15s, color .15s; white-space:nowrap}
+.btn-primary{background:var(--blue); color:#fff}
+.btn-primary:hover{background:#0b80d3}
+.btn-ghost{background:transparent; border-color:var(--line); color:var(--text)}
+.btn-ghost:hover{border-color:var(--cyan)}
+.btn-light{background:#fff; color:var(--navy)}
+.btn-sm{padding:8px 14px; font-size:14px}
+.btn[disabled]{opacity:.45; cursor:not-allowed}
+.link-btn{background:none; border:0; padding:0; color:var(--cyan); cursor:pointer; font-weight:500; text-decoration:underline; text-underline-offset:3px}
+
+/* ---------- Demo notice ---------- */
+.demo-bar{background:#0E2B47; color:#CFE6F7; font-size:13px; text-align:center; padding:7px 16px}
+.demo-bar b{color:#fff; font-weight:600}
+
+/* ---------- Header ---------- */
+.site-header{position:sticky; top:0; z-index:50; background:#fff; color:var(--paper-text); border-bottom:1px solid var(--paper-line)}
+.hdr{display:flex; align-items:center; gap:28px; height:72px}
+.logo img{height:46px; width:auto}
+.nav{display:flex; gap:22px; margin-left:auto}
+.nav a{text-decoration:none; font-weight:500; font-size:15px; color:#2A303B; padding:6px 0; border-bottom:2px solid transparent}
+.nav a:hover,.nav a.active{border-color:var(--blue); color:var(--navy)}
+.hdr-actions{display:flex; align-items:center; gap:14px}
+.cart{position:relative; display:grid; place-items:center; width:40px; height:40px; border-radius:50%; background:none; border:1px solid var(--paper-line); cursor:pointer}
+.cart svg{width:20px; height:20px; stroke:var(--navy)}
+.cart span{position:absolute; top:-4px; right:-4px; background:var(--blue); color:#fff; font-size:11px; font-weight:600; min-width:18px; height:18px; border-radius:9px; display:grid; place-items:center}
+.menu-btn{display:none; background:none; border:1px solid var(--paper-line); border-radius:var(--r-s); width:42px; height:40px; cursor:pointer}
+.menu-btn svg{stroke:var(--navy)}
+.mobile-nav{display:none}
+@media (max-width:960px){
+  .nav{display:none}
+  .menu-btn{display:grid; place-items:center}
+  .hdr-actions{margin-left:auto}
+  .hdr-actions .btn{display:none}
+  .mobile-nav.open{display:block; border-top:1px solid var(--paper-line); padding:8px 24px 18px}
+  .mobile-nav a{display:block; padding:12px 0; text-decoration:none; font-weight:500; border-bottom:1px solid var(--mist)}
+  .mobile-nav a.btn{display:flex; margin-top:14px; width:100%; color:#fff; border-bottom:0}
+}
+
+/* ---------- Hero ---------- */
+.hero{padding:64px 0 72px; background:radial-gradient(1200px 500px at 85% 0%, rgba(41,171,227,.09), transparent 60%), var(--ink)}
+.hero-grid{display:grid; grid-template-columns:1.02fr 1fr; gap:56px; align-items:center}
+.hero h1{font-size:clamp(36px,4.6vw,58px); line-height:1.02; font-weight:700; max-width:13ch}
+.hero .lede{margin-top:20px; font-size:18px; color:#C9D0DB; max-width:52ch}
+.hero-ctas{display:flex; flex-wrap:wrap; gap:12px; margin-top:30px}
+.trust{display:flex; flex-wrap:wrap; gap:10px 26px; margin-top:34px; padding-top:24px; border-top:1px solid var(--line); font-size:14px; color:var(--muted)}
+.trust li{display:flex; align-items:center; gap:9px; list-style:none}
+.trust svg{width:18px; height:18px; stroke:var(--cyan); flex:none}
+.trust ul{display:contents}
+
+/* Viewfinder – the hero's single memorable element */
+.viewfinder{position:relative}
+.vf-frame{position:relative; aspect-ratio:3/2; border-radius:var(--r-l); overflow:hidden; background:#05070A; border:1px solid #2B3038; box-shadow:0 30px 60px -30px rgba(0,0,0,.7)}
+.vf-layer{position:absolute; inset:0; opacity:0; transition:opacity .45s ease}
+.vf-layer.on{opacity:1}
+.vf-layer svg{width:100%; height:100%; display:block}
+.vf-nv{filter:contrast(1.08)}
+.vf-grain{position:absolute; inset:0; pointer-events:none; opacity:.0; mix-blend-mode:overlay; transition:opacity .45s;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.55'/></svg>")}
+.viewfinder[data-mode="nv"] .vf-grain{opacity:.55}
+.viewfinder[data-mode="thermal"] .vf-grain{opacity:.25}
+.vf-hud{position:absolute; inset:0; pointer-events:none; color:rgba(255,255,255,.82); font:500 12px/1 var(--body); letter-spacing:.02em}
+.vf-hud .tl{position:absolute; top:14px; left:16px}
+.vf-hud .tr{position:absolute; top:14px; right:16px}
+.vf-hud .bl{position:absolute; bottom:14px; left:16px}
+.vf-hud .reticle{position:absolute; left:50%; top:50%; width:46px; height:46px; transform:translate(-50%,-50%)}
+.vf-product{position:absolute; right:-14px; top:calc(100% - 150px); width:190px; background:#fff; border-radius:12px; padding:10px 10px 8px; box-shadow:0 20px 40px -14px rgba(0,0,0,.7); color:var(--paper-text)}
+.vf-product img{width:100%; aspect-ratio:4/3; object-fit:contain; mix-blend-mode:multiply}
+.vf-product span{display:block; font-size:12px; color:var(--paper-muted); margin-top:4px}
+.vf-product b{font:600 14px var(--display); color:var(--paper-text)}
+.vf-modes{display:flex; flex-wrap:wrap; gap:6px; margin-top:18px; background:var(--panel); border:1px solid var(--line); padding:5px; border-radius:var(--r-m); width:max-content; max-width:100%}
+.vf-modes button{background:none; border:0; padding:9px 14px; border-radius:7px; font-weight:500; font-size:14px; color:var(--muted); cursor:pointer}
+.vf-modes button[aria-pressed="true"]{background:var(--panel-2); color:#fff}
+.vf-caption{margin-top:12px; font-size:14px; color:var(--muted); max-width:56ch; min-height:3em}
+@media (max-width:960px){ .hero-grid{grid-template-columns:minmax(0,1fr); gap:40px} .vf-product{right:8px; width:150px} }
+@media (max-width:520px){ .vf-product{display:none} }
+
+/* ---------- Light sections ---------- */
+.light{background:var(--mist); color:var(--paper-text)}
+.light .muted{color:var(--paper-muted)}
+.section{padding:84px 0}
+.section-head{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:36px; flex-wrap:wrap}
+.section-head p{color:var(--muted); max-width:60ch; margin-top:10px}
+.light .section-head p{color:var(--paper-muted)}
+
+/* How it works – a genuine 3-step sequence, so numbered */
+.steps{display:grid; grid-template-columns:repeat(3,1fr); gap:0; border-top:2px solid var(--navy)}
+.step{padding:28px 28px 8px 0}
+.step + .step{padding-left:28px; border-left:1px solid var(--paper-line)}
+.step .n{font:700 44px/1 var(--display); color:var(--blue)}
+.step h3{margin-top:14px}
+.step p{margin-top:8px; color:var(--paper-muted); max-width:34ch}
+@media (max-width:760px){ .steps{grid-template-columns:1fr} .step + .step{padding-left:0; border-left:0; border-top:1px solid var(--paper-line)} }
+
+/* ---------- Recommender ---------- */
+.rec-grid{display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:28px; align-items:start}
+@media (max-width:1040px){ .rec-grid{grid-template-columns:1fr} }
+.q{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-l); padding:24px; margin-bottom:14px}
+.q-head{display:flex; align-items:baseline; gap:12px; margin-bottom:6px}
+.q-step{font:600 14px/1 var(--display); color:var(--cyan); min-width:52px}
+.q h3{font-size:20px}
+.q .hint{color:var(--faint); font-size:14px; margin:0 0 14px 64px}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-left:64px}
+@media (max-width:600px){ .q .hint,.chips{margin-left:0} .q-head{flex-direction:column; gap:6px} }
+.chip{background:var(--panel-2); border:1px solid var(--line); border-radius:999px; padding:9px 15px; font-size:14px; font-weight:500; cursor:pointer; color:#DCE2EA; transition:background .12s, border-color .12s}
+.chip:hover{border-color:#5A6372}
+.chip[aria-pressed="true"]{background:rgba(41,171,227,.14); border-color:var(--cyan); color:#fff}
+.chip[aria-pressed="true"]::before{content:"✓ "; color:var(--cyan)}
+.custom-budget{display:none; gap:12px; margin:14px 0 0 64px; flex-wrap:wrap; align-items:flex-end}
+.custom-budget.show{display:flex}
+@media (max-width:600px){ .custom-budget{margin-left:0} }
+.field label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r-s); padding:10px 12px; color:var(--text)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan); outline:none}
+.money{position:relative}
+.money span{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted)}
+.money input{padding-left:24px; width:140px}
+.q textarea{min-height:92px; resize:vertical; margin-left:0}
+.q .ta-wrap{margin-left:64px}
+@media (max-width:600px){ .q .ta-wrap{margin-left:0} }
+.rec-actions{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:6px}
+.rec-actions .btn-primary{padding:15px 28px; font-size:16px}
+.form-error{color:#FF9A92; font-size:14px}
+
+/* Assistant panel */
+.assistant{max-width:900px; margin:0 auto; background:#0F1116; border:1px solid var(--line); border-radius:var(--r-l); display:flex; flex-direction:column; height:min(760px, calc(100vh - 130px)); min-height:540px}
+#recommender .section-head{max-width:900px; margin-left:auto; margin-right:auto}
+.as-head{display:flex; gap:12px; align-items:center; padding:16px 18px; border-bottom:1px solid var(--line)}
+.as-avatar{width:38px; height:38px; border-radius:50%; background:conic-gradient(from 200deg, var(--navy), var(--blue), var(--cyan), var(--navy)); display:grid; place-items:center; flex:none}
+.as-avatar svg{width:18px; height:18px; stroke:#fff}
+.as-head h3{font-size:18px}
+.as-head p{font-size:12.5px; color:var(--faint)}
+.as-log{flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth}
+.msg{max-width:86%; font-size:15.5px; line-height:1.55}
+.msg.wide{max-width:100%; width:100%}
+.chat-list{display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr)); gap:10px; margin:12px 0}
+.ccard{display:grid; grid-template-columns:104px 1fr; gap:14px; background:#171A20; border:1px solid var(--line); border-radius:12px; padding:10px}
+.ccard.top{border-color:#3B6E92}
+.cimg{position:relative; background:radial-gradient(ellipse at 50% 55%, #fff, #E6EBF0 85%); border-radius:8px; aspect-ratio:1; display:grid; place-items:center; overflow:hidden; align-self:start}
+.cimg img{width:90%; height:90%; object-fit:contain; mix-blend-mode:multiply}
+.cimg .illus{width:80%; height:80%} .cimg .illus g{stroke:#8C97A6} .cimg .illus-note{display:none}
+.cbody{display:flex; flex-direction:column; gap:5px; min-width:0}
+.cmeta{font-size:12.5px; color:var(--muted)}
+.cname{font:600 18px/1.15 var(--display); color:#fff}
+.cprice{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font:700 19px var(--display); color:#fff}
+.cprice .was{font:400 13px var(--body)}
+.cbadges{display:flex; gap:5px; flex-wrap:wrap}
+.cbadges .badge{font-size:11px; padding:3px 7px}
+.cwhy{font-size:13.5px; color:#C3CBD6}
+.cacts{display:flex; align-items:center; gap:10px; margin-top:4px; flex-wrap:wrap}
+.cacts .cmp-toggle{font-size:13px}
+@media (max-width:560px){ .chat-list{grid-template-columns:1fr} .ccard{grid-template-columns:80px 1fr} .msg{max-width:94%} }
+.msg.ai{align-self:flex-start; background:var(--panel); border:1px solid var(--line); border-radius:4px 14px 14px 14px; padding:12px 14px}
+.msg.user{align-self:flex-end; background:var(--blue); color:#fff; border-radius:14px 4px 14px 14px; padding:10px 14px}
+.msg.ai p + p{margin-top:8px}
+.msg.ai strong{color:#fff; font-weight:600}
+.msg.ai ul{margin:8px 0 0; padding-left:18px}
+.msg.ai li{margin:3px 0}
+.msg .quick{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.msg .quick button{background:transparent; border:1px solid #3E4654; color:#D7E3EF; border-radius:999px; padding:6px 11px; font-size:13px; cursor:pointer}
+.msg .quick button:hover{border-color:var(--cyan); color:#fff}
+.typing{display:inline-flex; gap:4px; padding:4px 2px}
+.typing i{width:6px; height:6px; border-radius:50%; background:var(--muted); animation:blink 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s} .typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,80%,100%{opacity:.25} 40%{opacity:1}}
+.as-input{display:flex; gap:8px; padding:12px; border-top:1px solid var(--line)}
+.as-input input{flex:1; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--r-s); padding:12px 13px; color:var(--text)}
+.as-input input:focus{border-color:var(--cyan); outline:none}
+.as-input button{flex:none}
+@media (max-width:700px){ .assistant{height:calc(100vh - 170px); min-height:460px} .as-log{padding:12px} .msg.wide{padding:10px} .ccard{gap:10px} }
+
+/* ---------- Results ---------- */
+.results{background:#12141A; border-top:1px solid var(--line)}
+.summary-strip{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:20px; font-size:14px; color:var(--muted)}
+.pill{display:inline-flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:5px 11px; color:#D6DCE5; font-size:13px}
+.toolbar{display:grid; grid-template-columns:1.4fr repeat(4, minmax(0,1fr)); gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-m); padding:14px; margin-bottom:22px}
+@media (max-width:980px){ .toolbar{grid-template-columns:1fr 1fr} .toolbar .field:first-child{grid-column:1/-1} }
+.view-tabs{display:flex; gap:6px; margin-bottom:16px}
+.view-tabs button{background:none; border:1px solid var(--line); color:var(--muted); padding:8px 14px; border-radius:var(--r-s); cursor:pointer; font-weight:500; font-size:14px}
+.view-tabs button[aria-pressed="true"]{background:var(--panel-2); color:#fff; border-color:#4A5260}
+.ai-note{background:linear-gradient(0deg, rgba(41,171,227,.06), rgba(41,171,227,.06)), var(--panel); border:1px solid #2C4A60; border-left:3px solid var(--cyan); border-radius:var(--r-m); padding:16px 18px; margin-bottom:22px; font-size:15px; color:#D9E3EE}
+.ai-note strong{color:#fff}
+.ai-note p + p{margin-top:8px}
+.ai-note .who{font-size:12.5px; color:var(--cyan); margin-bottom:6px; font-weight:500}
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(290px,1fr)); gap:18px}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-l); overflow:hidden; display:flex; flex-direction:column; position:relative}
+.card.top{border-color:#3B6E92}
+.card-media{position:relative; aspect-ratio:4/3; background:radial-gradient(ellipse at 50% 55%, #FFFFFF, #E9EDF2 85%); display:grid; place-items:center; overflow:hidden}
+.card-media img{width:86%; height:86%; object-fit:contain; mix-blend-mode:multiply}
+.card-media .illus g{stroke:#8C97A6}
+.card-media .illus{width:70%; height:70%}
+.illus-note{position:absolute; right:10px; bottom:8px; font-size:11px; color:#7D8796}
+.badges{position:absolute; top:10px; left:10px; display:flex; flex-direction:column; gap:5px; align-items:flex-start}
+.badge{background:#fff; color:var(--navy); font-size:12px; font-weight:600; padding:4px 9px; border-radius:4px}
+.badge.value{background:#E8F7EF; color:#14643E}
+.badge.feat{background:#E7F2FB; color:#0A4F86}
+.sale{position:absolute; top:10px; right:10px; background:var(--over); color:#fff; font-size:12px; font-weight:600; padding:3px 8px; border-radius:4px}
+.card-body{padding:18px; display:flex; flex-direction:column; gap:12px; flex:1}
+.card-meta{font-size:13px; color:var(--muted)}
+.card h3{font-size:20px}
+.price-row{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.price{font:700 24px/1 var(--display)}
+.price small{font:500 12px var(--body); color:var(--faint); margin-left:3px}
+.was{color:var(--faint); text-decoration:line-through; font-size:14px}
+.bm{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; padding:3px 9px; border-radius:999px}
+.bm::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor}
+.bm.in{color:var(--ok); background:rgba(61,190,132,.1)}
+.bm.under{color:#8FD3F2; background:rgba(41,171,227,.1)}
+.bm.over{color:var(--over); background:rgba(226,99,91,.1)}
+.specs{display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; font-size:13.5px; margin:0}
+.specs dt{color:var(--faint); font-size:12px}
+.specs dd{margin:0; color:#E3E8EF}
+.why{font-size:14px; color:#C8D0DB; border-top:1px solid var(--line); padding-top:12px}
+.why b{color:#fff; font-weight:600}
+.matchbar{display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--muted)}
+.matchbar .track{flex:1; height:4px; background:#2E333C; border-radius:2px; overflow:hidden}
+.matchbar .fill{height:100%; background:var(--cyan)}
+.card-actions{display:flex; gap:10px; align-items:center; margin-top:auto; padding-top:4px}
+.cmp-toggle{display:inline-flex; align-items:center; gap:8px; font-size:14px; cursor:pointer; user-select:none; margin-left:auto}
+.cmp-toggle input{width:18px; height:18px; accent-color:var(--cyan)}
+.verify{font-size:11.5px; color:var(--faint)}
+.verify.partial{color:#D9A04B}
+.stretch-head{margin:38px 0 14px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.stretch-head h3{font-size:22px}
+.stretch-head p{color:var(--muted); font-size:14px}
+.empty{background:var(--panel); border:1px dashed #4A5260; border-radius:var(--r-l); padding:34px; text-align:left}
+.empty h3{margin-bottom:8px}
+.empty p{color:var(--muted); max-width:62ch}
+.empty .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+.skeleton{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-l); height:470px; position:relative; overflow:hidden}
+.skeleton::after{content:""; position:absolute; inset:0; background:linear-gradient(100deg, transparent 30%, rgba(255,255,255,.05) 50%, transparent 70%); animation:sweep 1.1s infinite}
+@keyframes sweep{from{transform:translateX(-100%)} to{transform:translateX(100%)}}
+.loading-line{display:flex; align-items:center; gap:10px; color:var(--muted); margin-bottom:18px; font-size:15px}
+.spinner{width:18px; height:18px; border-radius:50%; border:2px solid #3A414D; border-top-color:var(--cyan); animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.rank-note{font-size:13px; color:var(--faint); margin-top:22px; max-width:90ch}
+
+/* ---------- Compare tray ---------- */
+.tray{position:fixed; left:50%; bottom:16px; transform:translate(-50%, 140%); z-index:60; background:#fff; color:var(--paper-text); border-radius:var(--r-l);
+  box-shadow:0 18px 50px -12px rgba(0,0,0,.55); padding:12px 12px 12px 18px; display:flex; align-items:center; gap:16px; transition:transform .3s ease; width:min(760px, calc(100% - 24px))}
+.tray.show{transform:translate(-50%,0)}
+.tray-label{font-weight:600; font-size:14px; white-space:nowrap}
+.tray-items{display:flex; gap:8px; flex:1; min-width:0; overflow-x:auto}
+.tray-item{display:flex; align-items:center; gap:8px; background:var(--mist); border:1px solid var(--paper-line); border-radius:8px; padding:4px 6px 4px 4px; font-size:13px; white-space:nowrap}
+.tray-item img,.tray-item .ti{width:30px; height:30px; object-fit:contain; background:#fff; border-radius:5px}
+.tray-item button{background:none; border:0; cursor:pointer; color:var(--paper-muted); font-size:16px; line-height:1; padding:2px 4px}
+.tray-slot{width:120px; height:40px; border:1px dashed #C3CCD7; border-radius:8px; flex:none; font-size:12px; color:#8A94A3; display:grid; place-items:center}
+@media (max-width:640px){ .tray{gap:8px; padding:8px 8px 8px 12px; bottom:10px} .tray-items,.tray-slot{display:none} .tray-label{flex:1} .tray .btn{padding:9px 12px} .hide-sm{display:none} }
+
+/* ---------- Comparison ---------- */
+.compare-sec{background:var(--paper); color:var(--paper-text)}
+.compare-sec .section-head p{color:var(--paper-muted)}
+.prio-ctl{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.prio-ctl span{font-size:14px; color:var(--paper-muted); margin-right:4px}
+.prio-ctl button{background:#fff; border:1px solid var(--paper-line); border-radius:999px; padding:7px 13px; font-size:14px; font-weight:500; cursor:pointer; color:#2A303B}
+.prio-ctl button[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:#fff}
+.verdict{display:grid; grid-template-columns:1.25fr 1fr; gap:22px; margin:26px 0 30px}
+@media (max-width:900px){ .verdict{grid-template-columns:1fr} }
+.v-summary{background:var(--mist); border-radius:var(--r-l); padding:24px}
+.v-summary .who{font-size:13px; color:var(--blue); font-weight:600; margin-bottom:10px}
+.v-summary p{font-size:16px; line-height:1.6}
+.v-summary p + p{margin-top:10px}
+.v-pick{background:var(--ink); color:var(--text); border-radius:var(--r-l); padding:24px; position:relative; overflow:hidden}
+.v-pick .lbl{font-size:13px; color:var(--cyan); font-weight:600}
+.v-pick h3{font-size:28px; margin:6px 0 14px}
+.v-pick dl{margin:0; display:grid; gap:12px}
+.v-pick dt{font-size:13px; color:var(--muted); font-weight:500}
+.v-pick dd{margin:2px 0 0; font-size:15px; color:#E6EBF1}
+.table-wrap{overflow-x:auto; border:1px solid var(--paper-line); border-radius:var(--r-l)}
+table.cmp{border-collapse:collapse; width:100%; min-width:720px; font-size:14.5px}
+.cmp th,.cmp td{padding:13px 16px; text-align:left; vertical-align:top; border-bottom:1px solid var(--paper-line)}
+.cmp thead th{background:#fff; position:sticky; top:0}
+.cmp tbody th{width:190px; color:var(--paper-muted); font-weight:500; font-size:13.5px; background:#FAFBFD}
+.cmp tbody tr:last-child th,.cmp tbody tr:last-child td{border-bottom:0}
+.cmp .ph{display:flex; flex-direction:column; gap:8px}
+.cmp .ph .pimg{width:120px; height:90px; object-fit:contain; background:#fff; border-radius:8px; mix-blend-mode:multiply}
+.cmp .ph .pname{font:600 17px/1.2 var(--display)}
+.cmp .ph .acts{display:flex; gap:10px; align-items:center}
+.cmp td.lead{background:#F2F8FD}
+.cmp .ns{color:#98A1AE; font-style:italic}
+.cmp ul{margin:0; padding-left:16px}
+.cmp li{margin:2px 0}
+.best-tag{display:inline-block; font-size:11.5px; font-weight:600; color:#0A4F86; background:#E7F2FB; padding:2px 7px; border-radius:4px; margin-left:6px; vertical-align:middle}
+.cmp-empty{border:1px dashed var(--paper-line); border-radius:var(--r-l); padding:36px; background:var(--mist)}
+.cmp-empty p{color:var(--paper-muted); margin-top:8px; max-width:60ch}
+.rm{background:none; border:0; color:#B0423A; cursor:pointer; font-size:13px; padding:0; text-decoration:underline}
+
+/* ---------- Guide ---------- */
+.guide-grid{display:grid; grid-template-columns:1fr 1fr; gap:22px}
+@media (max-width:800px){ .guide-grid{grid-template-columns:1fr} }
+.guide-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r-l); padding:26px}
+.guide-card h3{display:flex; align-items:center; gap:10px}
+.guide-card .swatch{width:12px; height:12px; border-radius:3px}
+.guide-card p{color:#C3CBD6; margin-top:10px}
+.guide-card ul{margin:14px 0 0; padding-left:18px; color:#C3CBD6}
+.guide-card li{margin:5px 0}
+
+/* ---------- Enquiry ---------- */
+.enq-grid{display:grid; grid-template-columns:.9fr 1.1fr; gap:40px; align-items:start}
+@media (max-width:900px){ .enq-grid{grid-template-columns:1fr} }
+.enq-copy p{color:var(--paper-muted); margin-top:12px; max-width:46ch}
+.enq-copy .call{margin-top:22px; font:600 22px var(--display); color:var(--navy)}
+.enq-form{background:#fff; border:1px solid var(--paper-line); border-radius:var(--r-l); padding:26px}
+.enq-form .field label{color:var(--paper-muted)}
+.enq-form .field input,.enq-form .field textarea{background:#fff; border-color:#CBD3DD; color:var(--paper-text)}
+.enq-form .field input:focus,.enq-form .field textarea:focus{border-color:var(--blue)}
+.enq-form .row2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media (max-width:560px){ .enq-form .row2{grid-template-columns:1fr} }
+.enq-form .field{margin-bottom:14px}
+.prefs{background:var(--mist); border-radius:var(--r-m); padding:14px 16px; font-size:14px; margin-bottom:16px}
+.prefs h4{font:600 15px var(--body); margin-bottom:6px}
+.prefs dl{display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin:0}
+.prefs dt{color:var(--paper-muted)}
+.prefs dd{margin:0}
+.err{color:#B0423A; font-size:13px; margin-top:4px; min-height:0}
+.confirm{text-align:left; padding:10px 0}
+.confirm .tick{width:48px; height:48px; border-radius:50%; background:#E8F7EF; display:grid; place-items:center; margin-bottom:14px}
+.confirm .tick svg{stroke:#14643E; width:24px; height:24px}
+.confirm p{color:var(--paper-muted); margin-top:8px}
+.fine{font-size:12.5px; color:var(--paper-muted); margin-top:12px}
+
+/* ---------- Footer ---------- */
+footer{background:#0D0F13; color:var(--muted); font-size:14px; padding:40px 0}
+.foot{display:flex; justify-content:space-between; gap:30px; flex-wrap:wrap}
+.foot p{max-width:70ch}
+.foot strong{color:#DCE2EA; font-weight:600}
+
+/* ---------- Modal ---------- */
+.modal{position:fixed; inset:0; z-index:80; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(5,7,10,.7)}
+.modal.open{display:flex}
+.modal-box{background:#fff; color:var(--paper-text); border-radius:var(--r-l); width:min(920px,100%); max-height:calc(100vh - 40px); overflow:auto; position:relative}
+.modal-close{position:absolute; top:12px; right:12px; width:38px; height:38px; border-radius:50%; border:1px solid var(--paper-line); background:#fff; cursor:pointer; font-size:20px; line-height:1}
+.m-grid{display:grid; grid-template-columns:1fr 1.1fr}
+@media (max-width:760px){ .m-grid{grid-template-columns:1fr} }
+.m-media{background:radial-gradient(ellipse at 50% 55%, #F3F6F9, #E2E8EF); display:grid; place-items:center; padding:30px; min-height:280px; position:relative}
+.m-media img{max-height:320px; object-fit:contain; mix-blend-mode:multiply}
+.m-media .illus{width:70%}
+.m-body{padding:30px}
+.m-body h3{font-size:28px; margin:4px 0 10px}
+.m-body .meta{color:var(--paper-muted); font-size:14px}
+.m-specs{width:100%; border-collapse:collapse; font-size:14px; margin-top:16px}
+.m-specs th,.m-specs td{padding:8px 0; border-bottom:1px solid var(--paper-line); text-align:left; vertical-align:top}
+.m-specs th{color:var(--paper-muted); font-weight:500; width:44%}
+.m-lists{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; font-size:14px}
+.m-lists h4{font:600 15px var(--body); margin-bottom:6px}
+.m-lists ul{margin:0; padding-left:16px}
+.m-lists li{margin:3px 0}
+.m-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:22px}
+.m-actions .btn-ghost{color:var(--paper-text); border-color:var(--paper-line)}
+.m-verify{margin-top:16px; font-size:12.5px; color:var(--paper-muted); background:var(--mist); padding:10px 12px; border-radius:8px}
+
+/* ---------- Toast ---------- */
+.toasts{position:fixed; top:86px; right:18px; z-index:90; display:flex; flex-direction:column; gap:8px}
+.toast{background:#1E2229; color:#fff; border:1px solid #3A414D; border-left:3px solid var(--cyan); padding:11px 14px; border-radius:8px; font-size:14px; box-shadow:0 10px 30px -10px rgba(0,0,0,.6); animation:tin .25s ease}
+@keyframes tin{from{opacity:0; transform:translateY(-6px)}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important; transition:none!important; scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<div class="demo-bar" role="note"><b>Proof of concept.</b> The assistant runs on local rules, not a live AI service. Catalogue prices were copied from nightvision.com.au on 14 Oct 2026 and are not live.</div>
+
+<!-- ================= HEADER ================= -->
+<header class="site-header">
+  <div class="wrap hdr">
+    <a class="logo" href="#top" aria-label="Night Vision Australia home"><img src="data:image/png;base64,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" alt="Night Vision Australia, established 1991" width="217" height="53"></a>
+    <nav class="nav" aria-label="Main">
+      <a href="#top" data-nav="home" class="active">Home</a>
+      <a href="#results" data-nav="thermal">Thermal Imaging</a>
+      <a href="#results" data-nav="nightvision">Night Vision</a>
+      <a href="#results" data-nav="accessories">Accessories</a>
+      <a href="#guide" data-nav="guides">Buying Guides</a>
+    </nav>
+    <div class="hdr-actions">
+      <a class="btn btn-primary btn-sm" href="#recommender">Find My Device</a>
+      <button class="cart" type="button" aria-label="Cart (demo, 0 items)" data-action="cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17.5" cy="20" r="1.2"/></svg>
+        <span>0</span>
+      </button>
+      <button class="menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobileNav">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="mobile-nav" id="mobileNav">
+    <a href="#top" data-nav="home">Home</a>
+    <a href="#results" data-nav="thermal">Thermal Imaging</a>
+    <a href="#results" data-nav="nightvision">Night Vision</a>
+    <a href="#results" data-nav="accessories">Accessories</a>
+    <a href="#guide" data-nav="guides">Buying Guides</a>
+    <a class="btn btn-primary" href="#recommender">Find My Device</a>
+  </div>
+</header>
+
+<main id="top">
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>Find the Right Night Vision or Thermal Device for Your Budget</h1>
+      <p class="lede">Tell us what you need, set your budget and see the devices that suit you. Our AI Product Recommender helps you understand the differences and choose with confidence.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#recommender">Find My Perfect Device</a>
+      </div>
+      <div class="trust"><ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 1.6 2.6 4.5 3.2 4.5 1.6 4.5 3.3-2 3-4.5 3-4.5-1.3-4.5-3"/></svg>Budget-Based Recommendations</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v10H9l-5 4z"/></svg>Answers to Your Questions</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Smarter Product Selection</li>
+      </ul></div>
+    </div>
+
+    <div class="viewfinder" id="viewfinder" data-mode="thermal">
+      <div class="vf-frame" role="img" aria-label="The same Australian paddock at night shown three ways: naked eye, digital night vision and thermal imaging">
+        <div class="vf-layer" data-layer="eye"></div>
+        <div class="vf-layer" data-layer="nv"></div>
+        <div class="vf-layer on" data-layer="thermal"></div>
+        <div class="vf-grain"></div>
+        <div class="vf-hud" aria-hidden="true">
+          <span class="tl" id="vfMode">White hot</span>
+          <span class="tr">2.5×</span>
+          <span class="bl" id="vfRange">Paddock edge, approx. 300 m</span>
+          <svg class="reticle" viewBox="0 0 46 46" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.2"><path d="M23 0v16M23 30v16M0 23h16M30 23h16"/></svg>
+        </div>
+      </div>
+      <button type="button" class="vf-product" data-action="details" data-id="hm-lynx-lh25-3" style="border:0;cursor:pointer;text-align:left;font:inherit">
+        <img src="https://www.nightvision.com.au/wp-content/uploads/2025/10/1-1024x768.png" alt="" onerror="this.closest('.vf-product').remove()">
+        <b>HIKMICRO Lynx LH25 3.0</b><span>384 × 288 thermal, 1,200 m</span>
+      </button>
+      <div class="vf-modes" role="group" aria-label="Viewing mode">
+        <button type="button" data-mode="eye" aria-pressed="false">Naked eye</button>
+        <button type="button" data-mode="nv" aria-pressed="false">Digital night vision</button>
+        <button type="button" data-mode="thermal" aria-pressed="true">Thermal</button>
+      </div>
+      <p class="vf-caption" id="vfCaption" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="section light" id="how">
+  <div class="wrap">
+    <div class="section-head"><div><h2>How it works</h2><p>Three steps from "not sure what I need" to a device you can justify.</p></div></div>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Tell us your requirements</h3><p>Tell the product specialist which device you're after, or describe what you want to see at night.</p></div>
+      <div class="step"><div class="n">2</div><h3>Discover products within your budget</h3><p>Give your budget and the specialist lists devices that fit. Anything above your limit is labelled clearly.</p></div>
+      <div class="step"><div class="n">3</div><h3>Ask questions and find your best match</h3><p>Ask about range, battery, weight or anything else, and get straight answers from the product data.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= RECOMMENDER ================= -->
+<section class="section" id="recommender">
+  <div class="wrap">
+    <div class="section-head"><div><h2>Find My Perfect Device</h2><p>Chat with our product specialist. Tell it which device you're after, then your budget, and it will list the products that fit.</p></div>
+      <button class="btn btn-ghost btn-sm" type="button" data-action="restart">Start over</button>
+    </div>
+    <aside class="assistant" aria-label="Product specialist chat">
+      <div class="as-head">
+        <div class="as-avatar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+        <div><h3>Product specialist</h3><p>Simulated assistant for this demo. Answers come from local rules and the product catalogue.</p></div>
+      </div>
+      <div class="as-log" id="chatLog" aria-live="polite"></div>
+      <div class="as-input" id="chatForm">
+        <label for="chatInput" class="sr-only">Message the product specialist</label>
+        <input id="chatInput" type="text" autocomplete="off" enterkeyhint="send" placeholder="Type your answer or question…">
+        <button class="btn btn-primary" type="button" id="chatSend">Send</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ================= RESULTS ================= -->
+<section class="section results" id="results">
+  <div class="wrap">
+    <div class="section-head">
+      <div><h2 id="resultsTitle">Your matches</h2><p id="resultsSub">Tell the product specialist what you need and your matches appear here, or browse the full demo catalogue.</p></div>
+      <button class="btn btn-ghost btn-sm" type="button" data-action="revise">Revise requirements</button>
+    </div>
+    <div class="view-tabs" role="group" aria-label="Results view">
+      <button type="button" data-view="matches" aria-pressed="true">Matches for you</button>
+      <button type="button" data-view="all" aria-pressed="false">All products</button>
+    </div>
+    <div class="summary-strip" id="prefStrip"></div>
+    <div class="toolbar" role="search">
+      <div class="field"><label for="fSearch">Search by name or brand</label><input id="fSearch" type="search" placeholder="e.g. Lynx, Guide, Habrok"></div>
+      <div class="field"><label for="fCat">Category</label><select id="fCat"></select></div>
+      <div class="field"><label for="fBudget">Budget</label><select id="fBudget"></select></div>
+      <div class="field"><label for="fSort">Sort by</label><select id="fSort">
+        <option value="relevance">Relevance</option>
+        <option value="price-asc">Price: low to high</option>
+        <option value="price-desc">Price: high to low</option>
+        <option value="range">Detection range</option>
+        <option value="weight">Lightest first</option>
+        <option value="priority">My priorities</option>
+      </select></div>
+      <div class="field"><label for="fPrio">Rank priority</label><select id="fPrio"></select></div>
+    </div>
+    <div id="aiNote"></div>
+    <div id="resultsArea"></div>
+    <p class="rank-note">How ranking works in this demo: each device gets a match score from category fit (35%), use-case fit (30%), your selected priorities (25%) and budget position (10%). Priority scores come only from specifications published on the retailer's product pages; anything unpublished is shown as "Not specified" and scores conservatively rather than being guessed.</p>
+  </div>
+</section>
+
+<!-- ================= COMPARISON ================= -->
+
+<!-- ================= GUIDE ================= -->
+<section class="section" id="guide">
+  <div class="wrap">
+    <div class="section-head"><div><h2>Thermal or night vision?</h2><p>The short version our assistant uses when you ask about the difference.</p></div>
+      <button class="btn btn-ghost btn-sm" type="button" data-action="ask" data-q="What's the difference between thermal and night vision?">Ask the assistant</button></div>
+    <div class="guide-grid">
+      <article class="guide-card">
+        <h3><span class="swatch" style="background:var(--heat)"></span>Thermal imaging</h3>
+        <p>Reads heat rather than light. Warm animals, people and engines stand out against cooler surroundings in total darkness, light fog or scrub.</p>
+        <ul><li>Best for finding things: scanning paddocks, fence lines and bush edges.</li><li>Works day and night with no light source needed.</li><li>Shows shapes and heat, not colour or fine surface detail.</li><li>Higher sensor resolution (for example 384 × 288 over 256 × 192) and lower NETD give more detail at distance.</li></ul>
+      </article>
+      <article class="guide-card">
+        <h3><span class="swatch" style="background:#8FD3A8"></span>Digital night vision</h3>
+        <p>A sensitive camera that uses available light plus an infrared (IR) illuminator. It shows terrain and detail more naturally, and many models give full-colour images by day.</p>
+        <ul><li>Best for identifying things at closer range and for day-and-night use.</li><li>Night range depends on the IR illuminator; for example, the Heimdal H4D is listed with up to 200 m detection.</li><li>Usually lower cost than thermal for the same build quality.</li><li>Can't see through scrub or detect heat signatures.</li></ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENQUIRY ================= -->
+<section class="section light" id="enquiry">
+  <div class="wrap enq-grid">
+    <div class="enq-copy">
+      <h2>Request expert advice</h2>
+      <p>Send your shortlist to the Night Vision Australia team. They'll confirm current pricing, stock and whether the device suits your conditions before you buy.</p>
+      <p class="call">02 9283 4375</p>
+      <p>Unit 1, 17–19 Green Street, Banksmeadow NSW 2019</p>
+    </div>
+    <div class="enq-form" id="enqWrap">
+      <div id="enqForm">
+        <div class="prefs" id="enqPrefs"></div>
+        <div class="row2">
+          <div class="field"><label for="eName">Name</label><input id="eName" autocomplete="name" required><div class="err" id="eNameErr"></div></div>
+          <div class="field"><label for="eEmail">Email</label><input id="eEmail" type="email" autocomplete="email" required><div class="err" id="eEmailErr"></div></div>
+        </div>
+        <div class="field"><label for="eMsg">Message (optional)</label><textarea id="eMsg" rows="4" placeholder="Anything else the team should know, such as terrain, typical distances or timing."></textarea></div>
+        <button class="btn btn-primary" type="button" id="enqSend">Send enquiry</button>
+        <p class="fine">Demo only: nothing is sent or stored. Submitting shows the confirmation a customer would see.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <p><strong>About this proof of concept.</strong> Product names, prices, images and specifications were taken from public product pages on nightvision.com.au on 14 October 2026. Some prices were sale prices at that time. Products marked "Partial data" have a verified name and price only. The assistant is simulated with local JavaScript; it is structured so a real AI service can be connected through a secure backend later. No stock, pricing or AI service is live.</p>
+    <p>© Night Vision Australia. Demo build for client review.</p>
+  </div>
+</footer>
+
+<!-- Modal -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- =========================================================
+     PRODUCT CATALOGUE
+     Kept separate from UI code so it can be swapped for a live
+     feed (e.g. WooCommerce REST API) without touching the UI.
+     Source: public product pages on nightvision.com.au, read 14 Oct 2026.
+     verification.status:
+       "verified" – name, price, image and listed specs taken from the product page
+       "partial"  – name and price from a category listing only; specs not captured
+     Any spec not published on the product page is null and renders "Not specified".
+     ========================================================= -->
+<script>
+const CATALOGUE_META = { source: "nightvision.com.au", checked: "14 Oct 2026", live: false };
+
+const PRODUCTS = [
+  {
+    id: "hm-lynx-le10-3", name: "Lynx LE10 3.0", brand: "HIKMICRO", category: "thermal-monocular",
+    price: 699, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2026/02/LE10-1_00000-1024x768.png",
+    url: "https://www.nightvision.com.au/product/hikmicro/hikmicro-lynx-le10-3-0-thermal-monocular/",
+    specs: { sensor: "256 × 192 thermal", thermalPx: 256*192, digitalPx: null, netd: 20, lens: "9.7 mm F1.0", fov: "18°", detection: 500,
+             magnification: "1.4× base", display: null, batteryHrs: null, battery: null, weight: 291.5, protection: null },
+    features: { lrf:false, wifi:false, recording:false, shutterless:false, ai:false, dual:false },
+    uses: ["wildlife","property","camping","general"],
+    strengths: ["Lowest-priced thermal device in this catalogue", "Lightest device here at 291.5 g", "Wide 18° field of view for quick scanning close in", "Upgraded <20 mK sensitivity over the previous model"],
+    limitations: ["500 m detection and 256 × 192 sensor suit short to mid range", "1.4× base magnification shows less detail at distance", "Battery life not listed on the product page"],
+    verification: { status: "verified", note: "Specs from product page summary." }
+  },
+  {
+    id: "hm-lynx-le15-3", name: "Lynx LE15 3.0", brand: "HIKMICRO", category: "thermal-monocular",
+    price: 999, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2026/02/LE15-1_00000-1024x768.png",
+    url: "https://www.nightvision.com.au/product/hikmicro/hikmicro-lynx-le15-3-0-thermal-monocular/",
+    specs: { sensor: "256 × 192 thermal", thermalPx: 256*192, digitalPx: null, netd: 20, lens: "15 mm F1.0", fov: "11.7°", detection: 750,
+             magnification: "2.2× base", display: null, batteryHrs: null, battery: null, weight: 296.5, protection: null },
+    features: { lrf:false, wifi:false, recording:false, shutterless:true, ai:false, dual:false },
+    uses: ["wildlife","property","camping","general","hunting"],
+    strengths: ["750 m detection, half as far again as the LE10", "Shutterless imaging: no calibration freeze while you watch", "Pocketable at 296.5 g", "2.2× base magnification for more detail than the LE10"],
+    limitations: ["Same 256 × 192 sensor as the LE10, so less detail than 384 × 288 models", "Battery life not listed on the product page"],
+    verification: { status: "verified", note: "Specs from product page summary." }
+  },
+  {
+    id: "hm-lynx-lh25-3", name: "Lynx LH25 3.0", brand: "HIKMICRO", category: "thermal-monocular",
+    price: 2099, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2025/10/1-1024x768.png",
+    url: "https://www.nightvision.com.au/product/thermal/thermal-monoculars/hikmicro-lynx-lh25-3-0/",
+    specs: { sensor: "384 × 288 thermal", thermalPx: 384*288, digitalPx: null, netd: 15, lens: "25 mm F1.0", fov: "10.5°", detection: 1200,
+             magnification: "2.5× base", display: null, batteryHrs: null, battery: null, weight: 355, protection: null },
+    features: { lrf:false, wifi:false, recording:false, shutterless:false, ai:true, dual:false },
+    uses: ["wildlife","property","hunting","professional","general"],
+    strengths: ["384 × 288 sensor with <15 mK sensitivity for finer thermal detail", "1,200 m detection range", "AI image processing (Image Pro 3.0, Zoom Pro)", "Still pocketable at 355 g"],
+    limitations: ["Narrower 10.5° field of view than the LE models, so scanning close in is slower", "More than double the price of the LE15", "Battery life not listed on the product page"],
+    verification: { status: "verified", note: "Specs from product page summary." }
+  },
+  {
+    id: "pulsar-axion-xg35", name: "Axion Compact XG35", brand: "Pulsar", category: "thermal-monocular",
+    price: 3099, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2022/06/Pulsar-Axion.png",
+    url: "https://www.nightvision.com.au/product/pulsar/pulsar-axion-compact-xg35-thermal-monocular/",
+    specs: { sensor: null, thermalPx: null, digitalPx: null, netd: null, lens: null, fov: "Wide (exact figure not listed)", detection: null,
+             magnification: null, display: null, batteryHrs: null, battery: null, weight: 300, weightNote: "under 300 g", protection: null },
+    features: { lrf:false, wifi:true, recording:true, shutterless:false, ai:false, dual:false },
+    uses: ["hunting","wildlife","camping","general"],
+    strengths: ["Under 300 g and fits in one hand", "Wi-Fi connectivity", "Built-in photo and video recording", "Symmetrical controls for left or right hand"],
+    limitations: ["Sensor resolution, detection range and battery life aren't listed on the retailer page", "Priced well above HIKMICRO monoculars with published 1,200 m detection"],
+    verification: { status: "verified", note: "Retailer page gives features but few numeric specs." }
+  },
+  {
+    id: "hm-heimdal-h4d", name: "Heimdal H4D", brand: "HIKMICRO", category: "digital-nv",
+    price: 679, wasPrice: 799,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2023/06/HIKMICRO-Heimdal-Night-Vision-Monocular-Black_1-1024x640.png",
+    url: "https://www.nightvision.com.au/product/night-vision/hikmicro-heimdal-h4d-night-vision-monocular/",
+    specs: { sensor: "2560 × 1440 digital", thermalPx: null, digitalPx: 2560*1440, netd: null, lens: null, fov: null, detection: 200,
+             magnification: null, display: "1.39\" AMOLED, 454 × 454", batteryHrs: null, battery: "Replaceable, rechargeable", weight: null, protection: null },
+    features: { lrf:false, wifi:true, recording:true, shutterless:false, ai:false, dual:false, ir:true },
+    uses: ["camping","wildlife","general"],
+    strengths: ["Cheapest device in this catalogue (sale price)", "Day, night, auto and defog modes", "Built-in 850 nm IR illuminator", "Records photo and video to 32 GB; streams to a phone over Wi-Fi"],
+    limitations: ["Needs light or its IR illuminator: detection up to 200 m", "Can't detect heat, so animals in scrub are easy to miss", "Weight and battery life not listed on the product page"],
+    verification: { status: "verified", note: "Sale price at time of capture; may be time-limited." }
+  },
+  {
+    id: "hm-alpex-a50e", name: "Alpex 4K A50E", brand: "HIKMICRO", category: "digital-nv", mount: "scope",
+    price: 1249, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2024/01/HIKMICRO-Alpex-A50E-Night-Vision-Scope_1-1024x1024.png",
+    url: "https://www.nightvision.com.au/product/hikmicro/hikmicro-alpex-4k-a50e-digital-night-vision-scope/",
+    specs: { sensor: "3840 × 2160 (4K) digital", thermalPx: null, digitalPx: 3840*2160, netd: null, lens: "50 mm", fov: null, detection: null,
+             magnification: null, display: "0.49\" OLED, 1920 × 1080", batteryHrs: 11, battery: "11 hours", weight: null, protection: null },
+    features: { lrf:false, wifi:false, recording:true, shutterless:false, ai:false, dual:false },
+    uses: ["hunting"],
+    strengths: ["4K sensor: full colour by day, black and white at night", "11-hour battery life", "Recoil-activated video recording", "Traditional 30 mm tube design"],
+    limitations: ["Rifle scope, not a handheld observation device", "No IR torch included; night range depends on the torch you add", "Night detection range not listed"],
+    verification: { status: "verified", note: "Specs from product page." }
+  },
+  {
+    id: "guide-dn70m-2", name: "DN70M 2.0 Multispectral Binoculars", brand: "Guide", category: "nv-binoculars", also: ["thermal-binoculars"],
+    price: 1999, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2025/09/DN-1.png",
+    url: "https://www.nightvision.com.au/product/night-vision/night-vision-binoculars/guide-dn70m-2-0-multispectral-digital-binoculars/",
+    specs: { sensor: "256 × 192 thermal + 3840 × 2160 digital", thermalPx: 256*192, digitalPx: 3840*2160, netd: 30, lens: null, fov: null, detection: null,
+             magnification: null, display: null, batteryHrs: null, battery: null, weight: null, protection: null, lrfRange: 1500 },
+    features: { lrf:true, wifi:false, recording:false, shutterless:false, ai:false, dual:true },
+    uses: ["hunting","professional","wildlife","property","general"],
+    strengths: ["Thermal and 4K digital sensors in one device", "Built-in laser rangefinder to 1,500 m", "Two-eyed viewing is more comfortable for long sessions", "Customisable buttons and one-handed focus wheel"],
+    limitations: ["Thermal channel is 256 × 192 at <30 mK, less sensitive than the Lynx 3.0 range", "Weight, detection range and battery life not listed on the product page"],
+    verification: { status: "verified", note: "Specs from product page summary." }
+  },
+  {
+    id: "hm-habrok-hh35l-2", name: "Habrok 4K HH35L 2.0", brand: "HIKMICRO", category: "thermal-binoculars", also: ["nv-binoculars"],
+    price: 3499, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2026/09/HE35L-2.0_6-1024x576.png",
+    url: "https://www.nightvision.com.au/product/best-sellers/hikmicro-habrok-4k-hh35l-2-0-multi-spectrum-binocular/",
+    specs: { sensor: "384 × 288 thermal + 3840 × 2160 digital", thermalPx: 384*288, digitalPx: 3840*2160, netd: 15, lens: "35 mm F1.0 thermal; 60 mm F2.2 digital", fov: "7.53° × 5.65° (thermal)", detection: 1800,
+             magnification: "4–20× thermal; 5.5–22× digital", display: "0.49\" OLED, 1920 × 1080", batteryHrs: 6.5, battery: "≥ 6.5 hours (hotspot and LRF on)", weight: 900, protection: "IP67", lrfRange: 1000 },
+    features: { lrf:true, wifi:false, recording:true, shutterless:true, ai:false, dual:true, ir:true },
+    uses: ["hunting","wildlife","property","professional"],
+    strengths: ["384 × 288 thermal at <15 mK with 1,800 m detection", "4K digital channel with swappable 850/940 nm IR, 400 m night viewing", "1,000 m laser rangefinder, compass and recording built in", "IP67 rated, works from −30 °C to +55 °C"],
+    limitations: ["900 g without batteries: a binocular, not a pocket device", "Battery is about 6.5 hours with hotspot and LRF on", "At $3,499 it's a significant step up from single-sensor monoculars"],
+    verification: { status: "verified", note: "Full specification table on product page." }
+  },
+  {
+    id: "hm-thunder-te25-2", name: "Thunder TE25 2.0", brand: "HIKMICRO", category: "thermal-scope", mount: "scope",
+    price: 1599, wasPrice: null,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2023/07/25mm-1-1024x640.png",
+    url: "https://www.nightvision.com.au/product/hikmicro/hikmicro-thunder-te25-2-0-thermal-scope/",
+    specs: { sensor: "256 × 192 thermal", thermalPx: 256*192, digitalPx: null, netd: 20, lens: "25 mm", fov: null, detection: 1200,
+             magnification: null, display: "OLED, 1024 × 768", batteryHrs: 10, battery: "10 hours, replaceable", weight: null, protection: null },
+    features: { lrf:false, wifi:false, recording:false, shutterless:false, ai:false, dual:false },
+    uses: ["hunting"],
+    strengths: ["1,200 m detection with a 20 mK sensor", "10-hour replaceable battery that charges in use", "Mount included", "Lowest-priced thermal scope in this catalogue"],
+    limitations: ["256 × 192 sensor; less detail than 384 × 288 scopes", "Rifle scope: needs mounting and zeroing, not for hand scanning", "Weight not listed on the product page"],
+    verification: { status: "verified", note: "Specs from product page." }
+  },
+  {
+    id: "guide-tu650m-3", name: "TU650M 3.0", brand: "Guide", category: "thermal-scope", mount: "scope",
+    price: 2999, wasPrice: 5499,
+    image: "https://www.nightvision.com.au/wp-content/uploads/2025/09/TU650MTU1250M-5-1024x640.png",
+    url: "https://www.nightvision.com.au/product/thermal/thermal-rifle-scopes/guide-tu650m-3-0/",
+    specs: { sensor: "12 µm thermal + visible-light channel (resolution not listed)", thermalPx: null, digitalPx: null, netd: 18, lens: null, fov: null, detection: null,
+             magnification: null, display: "1.03\" AMOLED, 2560 × 2560", batteryHrs: null, battery: null, weight: null, protection: "IP68; shock-resistant to 6,000 J", lrfRange: 1500 },
+    features: { lrf:true, wifi:false, recording:false, shutterless:false, ai:true, dual:true, ir:true },
+    uses: ["hunting","professional"],
+    strengths: ["Thermal plus visible-light day/night modes", "Laser rangefinder to 1,500 m", "IP68 and shock-resistant to 6,000 J", "Includes quick-release mount, IR torch and bracket"],
+    limitations: ["Sensor resolution, detection range and battery life aren't stated in the retailer summary", "Sale price ($5,499 → $2,999) may be time-limited", "Rifle scope: needs mounting and zeroing"],
+    verification: { status: "verified", note: "Sale price at time of capture." }
+  },
+  /* ---- Partial-data entries: name and price from category listings only ---- */
+  {
+    id: "flir-scout-tkx", name: "Scout TKx", brand: "Teledyne FLIR", category: "thermal-monocular",
+    price: 959, wasPrice: 1199, image: null,
+    url: "https://www.nightvision.com.au/product/flir/flir-scout-tkx-thermal-monocular/",
+    specs: {}, features: {}, uses: ["wildlife","camping","general"],
+    strengths: ["On sale at time of capture", "Part of FLIR's Scout handheld range"],
+    limitations: ["Detailed specifications weren't captured for this demo; ask the team before deciding"],
+    verification: { status: "partial", note: "Name and price from category listing only." }
+  },
+  {
+    id: "hm-lynx-lh19-3", name: "Lynx LH19 3.0", brand: "HIKMICRO", category: "thermal-monocular",
+    price: 1899, wasPrice: null, image: null,
+    url: "https://www.nightvision.com.au/product/hikmicro/hikmicro-lynx-lh19-3-0/",
+    specs: {}, features: {}, uses: ["wildlife","property","hunting","general"],
+    strengths: ["Part of the Lynx 3.0 series, between the LE15 and LH25 in price"],
+    limitations: ["Detailed specifications weren't captured for this demo; ask the team before deciding"],
+    verification: { status: "partial", note: "Name and price from category listing only." }
+  },
+  {
+    id: "hm-condor-cq35l-2", name: "Condor CQ35L 2.0", brand: "HIKMICRO", category: "thermal-monocular",
+    price: 4099, wasPrice: null, image: null,
+    url: "https://www.nightvision.com.au/product/hikmicro/hikmicro-condor-cq35l-2-0-thermal-monocular/",
+    specs: {}, features: {}, uses: ["hunting","wildlife","property","professional"],
+    strengths: ["Retailer describes the Condor series as long range"],
+    limitations: ["Detailed specifications weren't captured for this demo"],
+    verification: { status: "partial", note: "Name and price from category listing only." }
+  },
+  {
+    id: "pulsar-telos-xp50-lrf", name: "Telos XP50 LRF", brand: "Pulsar", category: "thermal-monocular",
+    price: 4999, wasPrice: null, image: null,
+    url: "https://www.nightvision.com.au/product/pulsar/pulsar-telos-xp50-lrf-thermal-monocular/",
+    specs: {}, features: { lrf:true }, uses: ["hunting","wildlife","property","professional"],
+    strengths: ["Laser rangefinder (LRF) model", "Retailer highlights it for long-range performance"],
+    limitations: ["Detailed specifications weren't captured for this demo"],
+    verification: { status: "partial", note: "Name and price from category listing only." }
+  },
+  {
+    id: "agm-pvs14-green", name: "PVS-14 Green Phosphor", brand: "AGM", category: "nv-monocular",
+    price: 5999, wasPrice: null, image: null,
+    url: "https://www.nightvision.com.au/product/agm/agm-pvs-14-night-vision-monocular/",
+    specs: {}, features: {}, uses: ["professional","general"],
+    strengths: ["Image-intensifier (analogue) night vision monocular in the PVS-14 format"],
+    limitations: ["Detailed specifications weren't captured for this demo"],
+    verification: { status: "partial", note: "Name and price from category listing only." }
+  },
+  {
+    id: "hm-habrok-pro-hx60ls", name: "Habrok Pro HX60LS", brand: "HIKMICRO", category: "thermal-binoculars", also: ["nv-binoculars"],
+    price: 10299, wasPrice: null, image: null,
+    url: "https://www.nightvision.com.au/product/government/night-vision-government/hikmicro-habrok-pro-hx60ls-multi-spectrum-binocular/",
+    specs: {}, features: { dual:true }, uses: ["professional","hunting","wildlife"],
+    strengths: ["Multi-spectrum binocular at the top of the Habrok range"],
+    limitations: ["Detailed specifications weren't captured for this demo"],
+    verification: { status: "partial", note: "Name and price from related-products listing only." }
+  }
+];
+</script>
+
+<script>
+/* =========================================================
+   CONFIG – option lists used by the UI and the matcher
+   ========================================================= */
+const CATEGORIES = {
+  "thermal-monocular": { label: "Thermal monocular", family: "thermal", ease: 0.9 },
+  "thermal-scope":     { label: "Thermal scope", family: "thermal", ease: 0.5 },
+  "thermal-binoculars":{ label: "Thermal binoculars", family: "thermal", ease: 0.8 },
+  "digital-nv":        { label: "Digital night vision", family: "nightvision", ease: 0.85 },
+  "nv-binoculars":     { label: "Night vision binoculars", family: "nightvision", ease: 0.8 },
+  "nv-monocular":      { label: "Night vision monocular (image intensifier)", family: "nightvision", ease: 0.6 }
+};
+const TYPE_OPTIONS = [
+  { key: "thermal-monocular", label: "Thermal Monocular" },
+  { key: "thermal-scope", label: "Thermal Scope" },
+  { key: "digital-nv", label: "Digital Night Vision" },
+  { key: "nv-binoculars", label: "Night Vision Binoculars" },
+  { key: "thermal-binoculars", label: "Thermal Binoculars" },
+  { key: "notsure", label: "Not Sure – Help Me Choose" }
+];
+const USE_OPTIONS = [
+  { key: "wildlife", label: "Wildlife Observation" },
+  { key: "property", label: "Property and Perimeter Monitoring" },
+  { key: "hunting", label: "Hunting" },
+  { key: "camping", label: "Camping and Outdoor Activities" },
+  { key: "marine", label: "Marine Applications" },
+  { key: "professional", label: "Professional Use" },
+  { key: "general", label: "General Night-Time Observation" },
+  { key: "other", label: "Other" }
+];
+const BUDGET_OPTIONS = [
+  { key: "u500", label: "Under $500", min: 0, max: 500 },
+  { key: "500-1000", label: "$500–$1,000", min: 500, max: 1000 },
+  { key: "1000-2000", label: "$1,000–$2,000", min: 1000, max: 2000 },
+  { key: "2000-5000", label: "$2,000–$5,000", min: 2000, max: 5000 },
+  { key: "5000-10000", label: "$5,000–$10,000", min: 5000, max: 10000 },
+  { key: "10000+", label: "$10,000+", min: 10000, max: Infinity },
+  { key: "custom", label: "Custom Budget" }
+];
+const PRIO_OPTIONS = [
+  { key: "range", label: "Detection Range" },
+  { key: "clarity", label: "Image Clarity and Resolution" },
+  { key: "compact", label: "Compact and Lightweight Design" },
+  { key: "battery", label: "Battery Life" },
+  { key: "versatility", label: "Day and Night Versatility" },
+  { key: "value", label: "Value for Money" },
+  { key: "advanced", label: "Advanced Features" },
+  { key: "ease", label: "Ease of Use" },
+  { key: "notsure", label: "Not Sure" }
+];
+const COMPARE_PRIORITIES = [
+  { key: "match", label: "Best match" }, { key: "value", label: "Affordability" }, { key: "clarity", label: "Image quality" },
+  { key: "compact", label: "Portability" }, { key: "range", label: "Detection range" }, { key: "battery", label: "Battery" }
+];
+const UNKNOWN_SCORE = 0.35; // conservative score used when a spec isn't published
+
+/* =========================================================
+   STATE – single source of truth; preserved across views
+   ========================================================= */
+const state = {
+  types: new Set(), uses: new Set(), prios: new Set(),
+  budget: null,            // {key,label,min,max}
+  notes: "",
+  hasRun: false,
+  view: "matches",         // "matches" | "all"
+  search: "", catFilter: "all", sort: "relevance", rankPrio: "match",
+  compare: [],             // product ids, max 3
+  comparePrio: "match",
+  lastResults: null,
+  conv: { stage: "device", budgetFlexible: false, shown: [] } // chat flow: device -> budget -> done
+};
+
+/* =========================================================
+   UTILITIES
+   ========================================================= */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const AUD = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 });
+const fmt = n => AUD.format(n);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const byId = id => PRODUCTS.find(p => p.id === id);
+const fullName = p => `${p.brand} ${p.name}`;
+const catLabel = p => CATEGORIES[p.category].label;
+const shortCode = p => p.name.split(" ").find(w => /[a-z]+\d|\d+[a-z]/i.test(w) && !/^\d+k$/i.test(w)) || p.name;
+const budgetText = b => !b ? "Any budget" : b.max === Infinity ? `${fmt(b.min)}+` : b.min > 0 ? `${fmt(b.min)}–${fmt(b.max)}` : `Up to ${fmt(b.max)}`;
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  $("#toasts").appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+/* Illustrative category drawings – used only when no verified product photo exists.
+   They are deliberately generic and never presented as a specific model. */
+function illustration(cat) {
+  const s = 'fill="none" stroke="#7E8A9B" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  if (cat.includes("binocular")) return `<svg class="illus" viewBox="0 0 200 140" aria-hidden="true"><g ${s}><rect x="28" y="30" width="62" height="86" rx="14"/><rect x="110" y="30" width="62" height="86" rx="14"/><path d="M90 58h20M90 84h20"/><circle cx="59" cy="118" r="0"/><ellipse cx="59" cy="30" rx="22" ry="7"/><ellipse cx="141" cy="30" rx="22" ry="7"/></g></svg>`;
+  if (cat.includes("scope")) return `<svg class="illus" viewBox="0 0 220 120" aria-hidden="true"><g ${s}><rect x="20" y="42" width="38" height="36" rx="8"/><rect x="58" y="48" width="96" height="24" rx="6"/><rect x="154" y="36" width="48" height="48" rx="10"/><path d="M84 72v18h30V72"/></g></svg>`;
+  return `<svg class="illus" viewBox="0 0 200 120" aria-hidden="true"><g ${s}><rect x="40" y="34" width="96" height="52" rx="16"/><path d="M136 44h22a8 8 0 0 1 8 8v16a8 8 0 0 1-8 8h-22"/><ellipse cx="40" cy="60" rx="8" ry="22"/><circle cx="88" cy="34" r="0"/><path d="M70 34v-6h30v6"/></g></svg>`;
+}
+function mediaHTML(p, imgClass = "") {
+  if (p.image) return `<img class="${imgClass}" src="${esc(p.image)}" alt="${esc(fullName(p))}" loading="lazy" onerror="this.outerHTML=window.__illus('${p.category}')">`;
+  return illustration(p.category) + `<span class="illus-note">Illustrative image</span>`;
+}
+window.__illus = cat => illustration(cat) + `<span class="illus-note">Illustrative image</span>`;
+
+/* =========================================================
+   SCORING ENGINE
+   Every score is derived from published specs. A null spec
+   returns null; callers substitute UNKNOWN_SCORE and the UI
+   shows "Not specified".
+   ========================================================= */
+const Score = {
+  range(p) { return p.specs.detection ? clamp(p.specs.detection / 1800) : null; },
+  clarity(p) {
+    const s = p.specs; let t = null, d = null;
+    if (s.thermalPx) t = clamp(0.45 + (s.thermalPx - 49152) / (110592 - 49152) * 0.25, 0.3, 0.8) + (s.netd ? (s.netd <= 15 ? 0.1 : s.netd <= 20 ? 0.05 : 0) : 0);
+    if (s.digitalPx) d = s.digitalPx >= 8e6 ? 0.6 : 0.45; // digital detail falls away at night, so capped below good thermal
+    if (t == null && d == null) return null;
+    const best = Math.max(t ?? 0, d ?? 0);
+    return clamp(t != null && d != null ? best + 0.05 : best);
+  },
+  compact(p) {
+    if (p.mount === "scope") return 0.3;
+    return p.specs.weight ? clamp(1 - (p.specs.weight - 290) / 1000, 0.1, 1) : null;
+  },
+  battery(p) { return p.specs.batteryHrs ? clamp(p.specs.batteryHrs / 11) : null; },
+  versatility(p) {
+    if (p.features.dual || p.category === "digital-nv") return 1;
+    return CATEGORIES[p.category].family === "thermal" ? 0.5 : 0.6; // thermal also works by day, but no colour image
+  },
+  advanced(p) {
+    const f = p.features || {}; const n = ["lrf","wifi","recording","shutterless","ai","dual"].filter(k => f[k]).length;
+    return p.verification.status === "partial" && n === 0 ? null : clamp(n / 4);
+  },
+  ease(p) { return CATEGORIES[p.category].ease; },
+  value(p) { return p._value ?? null; }
+};
+// Value: published capability per dollar, normalised across the catalogue (computed once).
+(function computeValue() {
+  const raw = PRODUCTS.map(p => {
+    if (p.verification.status === "partial") return null;
+    const cap = 0.45 * (Score.range(p) ?? UNKNOWN_SCORE) + 0.4 * (Score.clarity(p) ?? UNKNOWN_SCORE) + 0.15 * (Score.advanced(p) ?? 0);
+    return cap / Math.sqrt(p.price / 1000);
+  });
+  const max = Math.max(...raw.filter(v => v != null));
+  PRODUCTS.forEach((p, i) => { p._value = raw[i] == null ? null : clamp(raw[i] / max); });
+})();
+const s0 = v => v ?? UNKNOWN_SCORE;
+
+/* Category fit: exact type match = 1, same family = 0.55, otherwise 0.2.
+   With no type (or "Not sure"), suitability comes from the use case instead. */
+function categoryFit(p, types) {
+  const t = [...types].filter(k => k !== "notsure");
+  if (!t.length) return 0.7;
+  const cats = [p.category, ...(p.also || [])];
+  if (t.some(k => cats.includes(k))) return 1;
+  const fams = t.map(k => CATEGORIES[k].family);
+  return fams.includes(CATEGORIES[p.category].family) ? 0.55 : 0.2;
+}
+function useFit(p, uses) {
+  const u = [...uses].filter(k => k !== "other");
+  if (!u.length) return 0.7;
+  return u.filter(k => p.uses.includes(k)).length / u.length;
+}
+function priorityFit(p, prios) {
+  const pr = [...prios].filter(k => k !== "notsure");
+  if (!pr.length) return 0.6;
+  return pr.reduce((a, k) => a + s0(Score[k](p)), 0) / pr.length;
+}
+function budgetPosition(p, b) {
+  if (!b) return { status: "in", fit: 0.7 };
+  if (p.price > b.max) return { status: "over", fit: 0 };
+  if (p.price < b.min * 0.95) return { status: "under", fit: 0.2 }; // 5% grace on the minimum only (e.g. $999 in a $1,000–$2,000 range); the maximum is strict // cheaper than the chosen range: still affordable, but ranked after in-range picks
+  // within range: slightly favour using the budget rather than undershooting it
+  const span = (b.max === Infinity ? b.min * 2 : b.max) - b.min || 1;
+  return { status: "in", fit: 0.7 + 0.3 * clamp((p.price - b.min) / span) };
+}
+function matchScore(p, st = state) {
+  const bp = budgetPosition(p, st.budget);
+  const score = 0.35 * categoryFit(p, st.types) + 0.30 * useFit(p, st.uses) + 0.25 * priorityFit(p, st.prios) + 0.10 * bp.fit;
+  return { score, budget: bp.status };
+}
+function effectiveScore(p, key) { // used by "Rank priority" and comparison re-ranking
+  if (key === "match") return matchScore(p).score;
+  return 0.55 * s0(Score[key](p)) + 0.45 * matchScore(p).score;
+}
+
+/* Main recommendation pass: returns in-budget picks, cheaper alternatives and stretch options. */
+function recommend() {
+  const scored = PRODUCTS.map(p => ({ p, ...matchScore(p) }));
+  const relevant = scored.filter(r => categoryFit(r.p, state.types) >= 0.55 || state.types.size === 0 || state.types.has("notsure"));
+  const usable = relevant.filter(r => useFit(r.p, state.uses) > 0 || state.uses.size === 0);
+  // In-range products first, then cheaper-than-range alternatives; never anything above the maximum.
+  const inBudget = usable.filter(r => r.budget !== "over").sort((a, b) => (a.budget === "in" ? 0 : 1) - (b.budget === "in" ? 0 : 1) || b.score - a.score);
+  const over = usable.filter(r => r.budget === "over").sort((a, b) => a.p.price - b.p.price).slice(0, 3);
+  const badges = assignBadges(inBudget);
+  return { inBudget, over, badges };
+}
+
+/* Badges are only awarded when the criteria are genuinely met. */
+function assignBadges(list) {
+  const out = {};
+  const inRange = list.filter(r => r.budget === "in");
+  const pool = inRange.length ? inRange : list.filter(r => r.budget === "under");
+  if (!pool.length) return out;
+  const add = (id, b) => (out[id] = out[id] || []).push(b);
+  if (pool[0].score >= 0.55) add(pool[0].p.id, "Best Overall Match");
+  const valued = pool.filter(r => r.p._value != null && r.score >= 0.5).sort((a, b) => b.p._value - a.p._value);
+  if (valued.length >= 2) add(valued[0].p.id, "Best Value");
+  const feat = pool.filter(r => r.p.verification.status === "verified" && r.score >= 0.5)
+    .map(r => ({ r, f: s0(Score.advanced(r.p)) * 0.6 + s0(Score.clarity(r.p)) * 0.4 }))
+    .sort((a, b) => b.f - a.f);
+  if (feat.length >= 2 && feat[0].f > feat[1].f) add(feat[0].r.p.id, "Best Features Within Budget");
+  return out;
+}
+
+/* Plain-language reason for a card */
+function reasonFor(p) {
+  const bits = [];
+  const uses = [...state.uses].filter(u => p.uses.includes(u)).map(u => USE_OPTIONS.find(o => o.key === u).label.toLowerCase());
+  if (uses.length) bits.push(`suits ${uses.slice(0, 2).join(" and ")}`);
+  const pr = [...state.prios].filter(k => k !== "notsure").map(k => ({ k, v: Score[k](p) })).filter(x => x.v != null && x.v >= 0.6);
+  const prText = { range: p.specs.detection ? `${p.specs.detection.toLocaleString("en-AU")} m detection` : "", clarity: p.specs.sensor || "", compact: p.specs.weight ? `${p.specs.weightNote || p.specs.weight + " g"}` : "",
+    battery: p.specs.battery || "", versatility: "day and night viewing", value: "strong published spec for the price", advanced: "extra features such as " + Object.keys(p.features).filter(k => p.features[k]).map(k => ({lrf:"rangefinder",wifi:"Wi-Fi",recording:"recording",shutterless:"shutterless imaging",ai:"AI processing",dual:"dual sensors",ir:"IR illuminator"}[k])).slice(0,2).join(" and "), ease: "simple handheld operation" };
+  pr.slice(0, 2).forEach(x => prText[x.k] && bits.push(prText[x.k]));
+  if (!bits.length) bits.push(p.strengths[0].charAt(0).toLowerCase() + p.strengths[0].slice(1));
+  let s = bits.join("; ");
+  s = s.charAt(0).toUpperCase() + s.slice(1) + ".";
+  if (p.mount === "scope" && (state.uses.has("wildlife") || state.uses.has("property")) && !state.uses.has("hunting")) s += " Note: this is a rifle scope, not a handheld viewer.";
+  return s;
+}
+
+/* =========================================================
+   ASSISTANT
+   AssistantAdapter is the seam for a real AI service. In
+   production, replace LocalAssistant.respond with a call to
+   your own backend (e.g. POST /api/assistant) that holds the
+   API key server-side and receives { message, preferences,
+   catalogue ids }. Never put keys in this file.
+   ========================================================= */
+const LocalAssistant = {
+  /* Extract preferences from free text. Returns what changed. */
+  parse(text) {
+    const t = " " + text.toLowerCase().replace(/,/g, "") + " ";
+    const found = { types: [], uses: [], prios: [], budget: null, intents: [] };
+    const has = re => re.test(t);
+
+    // device type
+    if (has(/thermal (mono|monocular|spotter|handheld)|\bmonocular/) && !has(/night vision monocular/)) found.types.push("thermal-monocular");
+    if (has(/scope|rifle|clip-?on/)) found.types.push("thermal-scope");
+    if (has(/digital( night vision)?|night vision (mono|monocular|camera)|\bnv\b/) && !has(/binocular/)) found.types.push("digital-nv");
+    if (has(/binocular|binos/)) {
+      if (has(/thermal/) && !has(/night vision binocular/)) found.types.push("thermal-binoculars");
+      else if (has(/night vision|digital/)) found.types.push("nv-binoculars");
+      else found.types.push("thermal-binoculars", "nv-binoculars");
+    }
+    const comparing = /differen|vs\.? |versus| or /.test(t);
+    if (!found.types.length && !comparing && has(/thermal/)) found.types.push("thermal-monocular");
+    if (!found.types.length && !comparing && has(/night vision/)) found.types.push("digital-nv");
+
+    // uses
+    const useMap = { wildlife: /wildlife|animal|bird|roo|kangaroo|possum|koala|ecolog|spotting/, property: /property|perimeter|farm|paddock|security|stock|livestock|fence/,
+      hunting: /hunt|fox|pig|deer|shoot|pest|vermin|cull/, camping: /camp|hik|outdoor|4wd|bush ?walk/, marine: /boat|marine|sailing|fishing|ocean|on the water|vessel/,
+      professional: /professional|search and rescue|sar\b|police|security guard|government|ranger|survey/, general: /general|observ|look around|night-?time/ };
+    for (const [k, re] of Object.entries(useMap)) if (re.test(t)) found.uses.push(k);
+
+    // priorities
+    const prMap = { compact: /compact|\blight(weight)?\b|pocket|small|portable/, range: /\brange\b|\bfar\b|distance|long[- ]range/, clarity: /clear|clarity|detail|resolution|sharp|image quality/,
+      battery: /battery/, versatility: /day and night|daytime|day use|colour/, value: /value|cheap|afford|bang for|budget-friendly/, advanced: /rangefinder|lrf|record|wi-?fi|app/, ease: /easy|simple|beginner|first/ };
+    for (const [k, re] of Object.entries(prMap)) if (re.test(t)) found.prios.push(k);
+
+    // budget: "between 1000 and 2000", "1-2k", "under 1500", "around $1.5k", "$1500"
+    const num = s => { let v = parseFloat(s.replace(/[^0-9.]/g, "")); if (/k\b/.test(s)) v *= 1000; return v; };
+    let m;
+    if ((m = t.match(/(?:between|from)\s*\$?\s*([\d.]+k?)\s*(?:and|to|-|–)\s*\$?\s*([\d.]+k?)/)) || (m = t.match(/\$\s*([\d.]+k?)\s*(?:-|–|to)\s*\$?\s*([\d.]+k?)/)))
+      found.budget = { min: num(m[1]), max: num(m[2]) };
+    else if ((m = t.match(/(?:under|below|less than|max(?:imum)?|up to|no more than)\s*\$?\s*([\d.]+k?)/)))
+      found.budget = { min: 0, max: num(m[1]) };
+    else if ((m = t.match(/(?:over|above|more than|at least)\s*\$?\s*([\d.]+k?)/)) && /budget|spend|\$/.test(t))
+      found.budget = { min: num(m[1]), max: Infinity };
+    else if ((m = t.match(/(?:around|about|roughly|approx(?:imately)?|budget(?: of| is)?|spend|\$)\s*\$?\s*([\d.]+k?)/)) && num(m[1]) >= 100)
+      found.budget = { min: 0, max: num(m[1]), around: true };
+    if (found.budget && found.budget.max < found.budget.min) found.budget = null;
+
+    // intents
+    if (has(/differen|vs\.? |versus|thermal or (digital )?night|night vision or thermal|which is better/) && has(/thermal/) && has(/night|digital/)) found.intents.push("explain");
+    if (has(/compare|comparison|side by side/)) found.intents.push("compare");
+    if (has(/start over|restart|reset|clear everything/)) found.intents.push("reset");
+    if (has(/cheaper|lower (price|budget|cost)|too expensive|less expensive/)) found.intents.push("cheaper");
+    if (has(/increase|raise|stretch|more budget|spend more/)) found.intents.push("raise");
+    if (has(/\bwhy\b|explain .*(pick|recommend)/)) found.intents.push("why");
+    if (has(/help|what can you|how does this work/) && text.length < 40) found.intents.push("help");
+    if (has(/show|find|recommend|suggest|match|options/)) found.intents.push("find");
+    if (has(/battery/) && has(/\?|how long/)) found.intents.push("batteryq");
+    if (has(/legal|licen[cs]e|permit|regulation/)) found.intents.push("legal");
+    return found;
+  },
+
+  /* Find products named in the text (for "compare X and Y" or "tell me about X") */
+  mentions(text) {
+    const t = text.toLowerCase();
+    return PRODUCTS.filter(p => {
+      const tokens = p.name.toLowerCase().replace(/[^a-z0-9. ]/g, " ").split(/\s+/).filter(w => w.length >= 3 && /[a-z]/.test(w) && !["thermal","binoculars","multispectral","compact","green","phosphor","lrf","pro"].includes(w));
+      return tokens.some(w => t.includes(w));
+    });
+  },
+
+  async respond(text) {
+    const f = this.parse(text);
+    const named = this.mentions(text);
+    const t = text.toLowerCase();
+    const conv = state.conv;
+    const out = [];
+
+    if (f.intents.includes("reset")) { resetAll({ clearLog: false }); return { html: "<p>No problem, let's start again. Which device are you looking for today? You can name a type, or just tell me what you'd like to see at night and where.</p>" }; }
+
+    // ---- 1. Pick up any preferences in the message ----
+    let gotDevice = false, gotBudget = false;
+    if (f.types.length) {
+      if (conv.stage === "done") state.types.clear(); // a new device type later in the chat replaces the old one
+      f.types.forEach(k => state.types.add(k)); state.types.delete("notsure"); gotDevice = true;
+    }
+    const isQ = /\?\s*$|^\s*(how|what|whats|what's|does|do|is|are|can|will|which|why)\b/.test(t);
+    if (f.uses.length && !(isQ && conv.stage === "done")) { f.uses.forEach(k => state.uses.add(k)); gotDevice = true; }
+    const askingOnly = /\?\s*$|^\s*(how|what|whats|what's|does|do|is|are|can|will|which|why)\b/.test(t);
+    if (f.prios.length && !askingOnly) f.prios.forEach(k => state.prios.add(k));
+    if (f.budget) { setBudget({ key: "custom", label: "Custom", ...f.budget }); gotBudget = true; }
+    if (!f.budget && conv.stage === "budget") {
+      // While waiting for a budget, a bare figure ("1500", "2k") is read as the maximum
+      const m = t.replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(k\b)?/);
+      if (m && !/\b(m|metres?|meters?|g|grams?|hours?|hrs?|mm|x)\b/.test(t.slice(m.index + m[0].length, m.index + m[0].length + 8))) {
+        const v = parseFloat(m[1]) * (m[2] ? 1000 : 1);
+        if (v >= 50) { setBudget({ key: "custom", label: "Custom", min: 0, max: v }); gotBudget = true; }
+      } else if (/no (fixed |set |real )?budget|flexible|any (price|budget)|doesn'?t matter|no limit|not fussed|whatever it takes|open budget/.test(t)) {
+        setBudget(null); conv.budgetFlexible = true; gotBudget = true;
+      }
+    }
+    if (conv.stage === "done") {
+      if (f.intents.includes("cheaper") && !f.budget) {
+        const b = state.budget; const base = b ? (b.max === Infinity ? b.min : b.max) : (state.lastResults?.inBudget[0]?.p.price || 2000);
+        setBudget({ key: "custom", label: "Custom", min: 0, max: Math.max(100, Math.round(base * 0.6 / 50) * 50) }); gotBudget = true;
+      }
+      if (f.intents.includes("raise") && !f.budget) {
+        const b = state.budget;
+        const cheapestFit = PRODUCTS.filter(p => categoryFit(p, state.types) >= 0.55 && (useFit(p, state.uses) > 0 || !state.uses.size)).map(p => p.price).sort((x, y) => x - y)[0] || 0;
+        const base = !b ? 2000 : b.max === Infinity ? b.min * 2 : b.max;
+        setBudget({ key: "custom", label: "Custom", min: 0, max: Math.max(Math.round(base * 1.5 / 50) * 50, Math.ceil(cheapestFit / 100) * 100) }); gotBudget = true;
+      }
+    }
+    if (conv.stage === "device" && gotDevice && !state.notes) state.notes = text.trim();
+    syncState();
+
+    // ---- 2. Answer whatever the customer actually asked ----
+    const answer = answerQuestions(text, f, named);
+
+    // ---- 3. Move the conversation forward ----
+    if (conv.stage === "device") {
+      if (state.types.size || state.uses.size) {
+        if (answer) out.push(answer);
+        out.push(`<p>${deviceSummary()}</p>`);
+        const advice = categoryAdvice(); if (advice) out.push(advice);
+        if (state.budget || conv.budgetFlexible) { conv.stage = "done"; return listingReply(out); }
+        conv.stage = "budget";
+        out.push("<p>What's your budget in Australian dollars? A maximum is enough, or give me a range if you have one.</p>");
+        return { html: out.join("") };
+      }
+      if (answer) return { html: answer + "<p>When you're ready, tell me which device you're looking for, or what you'll mainly use it for, and I'll narrow things down.</p>" };
+      if (/not sure|no idea|don'?t know|help me (choose|decide)|which (one|device|type)/.test(t))
+        return { html: EXPLAIN_HTML + "<p>What will you mainly be using it for, and where? From that I can tell you which type makes sense.</p>" };
+      if (gotBudget) return { html: `<p>Thanks, I've noted your budget (${esc(budgetText(state.budget).toLowerCase())}). Which device are you looking for, or what will you use it for?</p>` };
+      if (/^(hi|hello|hey|g'?day|good (morning|afternoon|evening))\b/.test(t.trim())) return { html: "<p>Hi there! Which device are you looking for today? You can name a type, like a thermal monocular, or just tell me what you'd like to see at night and where.</p>" };
+      return { html: "<p>I didn't quite catch what you're after. Could you describe what you want to see at night and where? For example, foxes around the farm, wildlife while camping, or checking a boundary fence.</p>" };
+    }
+
+    if (conv.stage === "budget") {
+      if (gotBudget) {
+        conv.stage = "done";
+        if (answer) out.push(answer);
+        out.push(conv.budgetFlexible ? "<p>Understood, no fixed budget. I'll show the best matches at any price.</p>" : `<p>Thanks. I'll keep everything at or below ${fmt(state.budget.max)}.</p>`);
+        return listingReply(out);
+      }
+      if (gotDevice) return { html: (answer || "") + `<p>Noted. ${deviceSummary()} And what's your budget in AUD?</p>` };
+      if (answer) return { html: answer + "<p>And what budget should I work within? A rough maximum is fine.</p>" };
+      return { html: "<p>I need a figure to work with. What's the most you'd like to spend, in Australian dollars? If you're flexible, just say so and I'll show options at every price.</p>" };
+    }
+
+    // stage "done": free conversation about the results
+    if (gotDevice || gotBudget) {
+      if (answer) out.push(answer);
+      out.push(`<p>${gotBudget ? `Budget updated to ${esc(budgetText(state.budget).toLowerCase())}.` : ""} ${gotDevice ? deviceSummary() : ""}</p>`);
+      return listingReply(out);
+    }
+    if (answer) return { html: answer };
+    if (f.intents.includes("find")) return listingReply(out);
+    return { html: "<p>I'm not sure I followed that. You can ask me about any of the devices I've listed, such as how far they see, battery life, weight or weather sealing, ask how two of them differ, or tell me a different budget or device type.</p>" };
+  }
+};
+
+const EXPLAIN_HTML = "<p><strong>Thermal imaging reads heat.</strong> Animals, people and engines stand out against cooler surroundings in complete darkness, light fog or scrub. You see shapes and heat, not colour or fine surface detail.</p>" +
+  "<p><strong>Digital night vision is a sensitive camera</strong> that uses available light plus an infrared illuminator. It shows terrain and detail more naturally and often works in colour by day, but night range is limited by the IR: the Heimdal H4D, for example, is listed at up to 200 m.</p>" +
+  "<p>Rule of thumb: thermal for <em>finding</em> things, digital night vision for <em>identifying</em> things at closer range. Some binoculars, like the Habrok HH35L or Guide DN70M, carry both.</p>";
+
+/* Answers the customer's own questions from catalogue data. Returns "" when the
+   message contains no question we can answer, so the flow can carry on. */
+function answerQuestions(text, f, named) {
+  const t = text.toLowerCase(); const out = [];
+  const isQuestion = /\?|^\s*(how|what|whats|what's|does|do|is|are|can|will|which|why|should|tell me|any|which)\b/.test(t);
+  const ctx = named.length ? named : (state.conv.shown || []).map(byId).filter(Boolean);
+
+  if (f.intents.includes("explain")) out.push(EXPLAIN_HTML);
+  if (f.intents.includes("legal")) out.push("<p>Rules for night optics, especially rifle scopes, differ between states and land types, so I can't advise on your situation. Please check with your state authority; the Night Vision Australia team can tell you what customers in your area usually need.</p>");
+  if (f.uses.includes("marine")) out.push("<p>On marine use: this demo catalogue doesn't include marine-specific night vision. Night Vision Australia lists marine cameras such as SiOnyx Nightwave and a boating bundle, so it's worth <button class='link-btn' data-action='scroll-enquiry'>asking the team</button> about those. Handheld devices can still be used on a boat.</p>");
+
+  // Comparisons
+  if (f.intents.includes("compare")) {
+    const pair = named.length >= 2 ? named.slice(0, 2) : (state.conv.shown?.length >= 2 ? state.conv.shown.slice(0, 2).map(byId) : null);
+    if (pair) {
+      const [a, b] = pair;
+      const line = (label, fn) => `<li><strong>${label}:</strong> ${esc(a.name)} ${fn(a) ?? "not specified"}; ${esc(b.name)} ${fn(b) ?? "not specified"}</li>`;
+      out.push(`<p>Here's how the ${esc(fullName(a))} and ${esc(fullName(b))} differ:</p><ul>${line("Price", p => fmt(p.price))}${line("Sensor", p => p.specs.sensor ? esc(p.specs.sensor) : null)}${line("Detection range", p => p.specs.detection ? p.specs.detection.toLocaleString("en-AU") + " m" : null)}${line("Weight", p => p.specs.weight ? esc(p.specs.weightNote || p.specs.weight + " g") : null)}</ul><p>${comparisonSentence(a, b)}</p>`);
+    } else if (named.length === 1) out.push(`<p>Which model would you like me to weigh the ${esc(named[0].name)} against?</p>`);
+    else out.push("<p>Tell me the two models you're deciding between, by name, and I'll explain the differences.</p>");
+    return out.join("");
+  }
+
+  // Store questions
+  if (/deliver|shipping|postage|freight/.test(t)) out.push("<p>Night Vision Australia lists free delivery on orders over $250 Australia-wide. For delivery times to your area, the team can confirm.</p>");
+  if (/warrant|guarantee|return/.test(t)) out.push("<p>Warranty and returns depend on the brand and model, and I don't have those terms in this demo. The team can confirm them for any device before you buy.</p>");
+  if (/in stock|stock|availab/.test(t) && isQuestion) out.push("<p>I can't check live stock in this demo. The team can confirm availability for any of these.</p>");
+  if (/pay later|afterpay|\bzip\b|instal|finance/.test(t)) out.push("<p>The store lists a Zip pay-later option. The team can talk you through it.</p>");
+
+  // Spec questions about named products, or the products I've just shown
+  const topics = [
+    { re: /rain|wet|waterproof|water proof|weather|\bip ?6|dust|seal/, label: "weather protection", get: p => p.specs.protection },
+    { re: /battery|charg|run ?time|how long.*(last|run)/, label: "battery life", get: p => p.specs.battery },
+    { re: /weigh|heavy|how light|pocket|size|bulky/, label: "weight", get: p => p.specs.weight ? (p.specs.weightNote || p.specs.weight + " g") : null },
+    { re: /how far|range|distance|detect|see up to/, label: "detection range", get: p => p.specs.detection ? p.specs.detection.toLocaleString("en-AU") + " m" : null },
+    { re: /record|video|photo|picture|film/, label: "recording", get: p => p.features?.recording ? "Yes, records photo and video" : null },
+    { re: /rangefinder|\blrf\b|measure (the )?distance/, label: "laser rangefinder", get: p => p.specs.lrfRange ? `Yes, up to ${p.specs.lrfRange.toLocaleString("en-AU")} m` : p.features?.lrf ? "Yes" : (p.verification.status === "verified" ? "No rangefinder listed" : null) },
+    { re: /day ?time|during the day|daylight|in the day|colour|color/, label: "daytime use", get: p => (p.features?.dual || p.category === "digital-nv") ? "Yes, has a digital channel that shows a normal daytime image" : CATEGORIES[p.category].family === "thermal" ? "Works by day, but shows a thermal (heat) image rather than colour" : null },
+    { re: /resolution|sensor|clarity|detail|sharp|image quality/, label: "sensor", get: p => p.specs.sensor },
+    { re: /wi-?fi|app|phone|stream/, label: "Wi-Fi / app", get: p => p.features?.wifi ? "Yes, connects to a phone over Wi-Fi" : null },
+    { re: /magnif|zoom/, label: "magnification", get: p => p.specs.magnification }
+  ];
+  const asked = topics.filter(x => x.re.test(t));
+  if (asked.length && (isQuestion || named.length) && ctx.length) {
+    asked.slice(0, 3).forEach(topic => {
+      out.push(`<p><strong>${topic.label.charAt(0).toUpperCase() + topic.label.slice(1)}:</strong></p><ul>${ctx.slice(0, 4).map(p => `<li>${esc(fullName(p))}: ${topic.get(p) ? esc(topic.get(p)) : "not specified on the product page, so I won't guess"}</li>`).join("")}</ul>`);
+    });
+    if (asked.some(x => x.label === "weather protection") && ctx.every(p => !p.specs.protection)) out.push("<p>Most of these don't publish an IP rating on the retailer page. If you'll be out in heavy rain, ask the team to confirm before buying.</p>");
+  } else if (asked.length && isQuestion && !ctx.length && !out.length) {
+    out.push(`<p>Good question. Once I know which device you're after and your budget, I'll give you the exact ${asked[0].label} for each option.</p>`);
+  }
+
+  // A specific product, with no particular spec asked
+  if (!asked.length && named.length === 1 && (isQuestion || /about|tell|info/.test(t) || t.trim().split(/\s+/).length <= 4)) {
+    const p = named[0];
+    out.push(`<p><strong>${esc(fullName(p))}</strong>, ${esc(catLabel(p).toLowerCase())}, ${fmt(p.price)}${p.wasPrice ? ` (was ${fmt(p.wasPrice)})` : ""}.</p><ul>${p.strengths.slice(0, 3).map(s => `<li>${esc(s)}</li>`).join("")}</ul><p>Trade-off: ${esc(p.limitations[0].charAt(0).toLowerCase() + p.limitations[0].slice(1))}.${state.budget && p.price > state.budget.max ? ` It's above your ${fmt(state.budget.max)} maximum.` : ""}</p><p><button class="link-btn" data-action="details" data-id="${p.id}">View full details</button></p>`);
+  }
+  if (!asked.length && named.length > 1 && !f.intents.includes("compare")) {
+    out.push(`<p>Here's how those line up:</p><ul>${named.slice(0, 4).map(p => `<li><strong>${esc(fullName(p))}</strong>, ${fmt(p.price)}: ${esc(p.strengths[0].charAt(0).toLowerCase() + p.strengths[0].slice(1))}</li>`).join("")}</ul>`);
+  }
+
+  // "Why that one?"
+  if (f.intents.includes("why") && state.lastResults?.inBudget.length && !named.length) {
+    const r = state.lastResults; const top = r.inBudget[0].p;
+    out.push(`<p>The ${esc(fullName(top))} ranks first because ${esc(reasonFor(top).replace(/\.$/, "").toLowerCase())}.</p>`);
+    if (r.inBudget[1]) out.push(`<p>${comparisonSentence(top, r.inBudget[1].p)}</p>`);
+  }
+  // "Which is best / which should I buy?"
+  if (/which (one )?(is|would|should)|best (one|option|choice)|what would you (recommend|suggest)/.test(t) && state.lastResults?.inBudget.length && !f.intents.includes("why")) {
+    const top = state.lastResults.inBudget[0].p;
+    out.push(`<p>From what you've told me, I'd go with the <strong>${esc(fullName(top))}</strong>: ${esc(reasonFor(top).replace(/\.$/, "").toLowerCase())}. One thing to know: ${esc(top.limitations[0].charAt(0).toLowerCase() + top.limitations[0].slice(1))}. If that matters to you, tell me and I'll weigh it differently.</p>`);
+  }
+  return out.join("");
+}
+
+/* One-line restatement of what the customer has asked for */
+function deviceSummary() {
+  const types = [...state.types].filter(k => k !== "notsure").map(k => TYPE_OPTIONS.find(o => o.key === k).label.toLowerCase());
+  const uses = [...state.uses].filter(k => k !== "other").map(k => USE_OPTIONS.find(o => o.key === k).label.toLowerCase());
+  const prios = [...state.prios].filter(k => k !== "notsure").map(k => PRIO_OPTIONS.find(o => o.key === k).label.toLowerCase());
+  const art = w => /s$/.test(w) ? "" : /^[aeiou]/.test(w) ? "an " : "a ";
+  let s = "Got it: " + (types.length ? art(types[0]) + types.join(" or ") : "a device");
+  if (uses.length) s += " for " + uses.join(", ").replace(/, ([^,]*)$/, " and $1");
+  if (prios.length) s += ", with " + prios.join(" and ") + " as a priority";
+  return s + ".";
+}
+
+/* Runs the matcher and returns the chat reply containing the product listing */
+function listingReply(out) {
+  runRecommendation({ fromChat: true });
+  const r = state.lastResults;
+  out.push(resultsNarrative(r));
+  const items = r.inBudget.slice(0, 4);
+  const shown = items.length ? items : r.over.slice(0, 2);
+  state.conv.shown = shown.map(x => x.p.id);
+  if (shown.length) {
+    out.push(`<div class="chat-list">${shown.map(x => chatCard(x, r.badges[x.p.id] || [])).join("")}</div>`);
+    const total = r.inBudget.length + r.over.length;
+    out.push(`<p>${total > shown.length ? `<button class="link-btn" data-action="see-results">See all ${total} results</button> with search, filters and sorting. ` : ""}Ask me anything about these, such as how far they see, battery life or weather sealing.</p>`);
+  }
+  return { html: out.join(""), wide: true };
+}
+function chatCard(x, badges) {
+  const p = x.p; const st = x.budget;
+  const bm = state.budget ? `<span class="bm ${st}" style="font:600 11.5px var(--body)">${{ in: "Within budget", under: "Below your range", over: "Over budget" }[st]}</span>` : "";
+  const cls = { "Best Overall Match": "", "Best Value": "value", "Best Features Within Budget": "feat" };
+  return `<div class="ccard ${badges.includes("Best Overall Match") ? "top" : ""}">
+    <div class="cimg">${mediaHTML(p)}</div>
+    <div class="cbody">
+      ${badges.length ? `<div class="cbadges">${badges.map(b => `<span class="badge ${cls[b]}">${b}</span>`).join("")}</div>` : ""}
+      <div class="cmeta">${esc(p.brand)} · ${esc(catLabel(p))}</div>
+      <div class="cname">${esc(p.name)}</div>
+      <div class="cprice"><span class="num">${fmt(p.price)}</span>${p.wasPrice ? `<span class="was num">${fmt(p.wasPrice)}</span>` : ""}${bm}</div>
+      <p class="cwhy">${esc(reasonFor(p))}</p>
+      <div class="cacts"><button class="btn btn-ghost btn-sm" type="button" data-action="details" data-id="${p.id}">View Details</button></div>
+    </div></div>`;
+}
+
+/* Which category to lead with, in plain language */
+function categoryAdvice() {
+  const u = state.uses; const t = state.types;
+  if (t.size && !t.has("notsure")) return "";
+  if (u.has("hunting") && (u.has("wildlife") || u.has("property"))) return "<p>For hunting plus general spotting, many customers pair a thermal monocular for scanning with a scope for the shot. If you want one device, start with a thermal monocular.</p>";
+  if (u.has("hunting")) return "<p>For hunting I'd look at thermal scopes first if you need a rifle-mounted sight, or a thermal monocular if you'll scan and spot on foot.</p>";
+  if (u.has("wildlife") || u.has("property") || u.has("general")) return "<p>For spotting animals or checking a property at night, I'd focus on compact thermal monoculars first. Thermal picks out warm bodies in darkness, while digital night vision depends on available light or an infrared illuminator.</p>";
+  if (u.has("camping")) return "<p>For camping and general outdoor use, a compact thermal monocular is the most useful, though a digital night vision monocular costs less and also works as a day camera.</p>";
+  if (u.has("professional")) return "<p>For professional use, binoculars with a laser rangefinder and recording are worth the extra weight.</p>";
+  return "";
+}
+
+function comparisonSentence(a, b) {
+  const parts = [];
+  const cheaper = a.price <= b.price ? a : b, dearer = cheaper === a ? b : a;
+  parts.push(`The ${esc(cheaper.name)} costs ${fmt(dearer.price - cheaper.price)} less`);
+  if (a.specs.detection && b.specs.detection && a.specs.detection !== b.specs.detection) {
+    const far = a.specs.detection > b.specs.detection ? a : b;
+    parts.push(`the ${esc(far.name)} has the longer published detection range (${far.specs.detection.toLocaleString("en-AU")} m vs ${(far === a ? b : a).specs.detection.toLocaleString("en-AU")} m)`);
+  } else if (!a.specs.detection || !b.specs.detection) parts.push("detection range isn't published for both, so I can't compare it fairly");
+  if (a.specs.weight && b.specs.weight && Math.abs(a.specs.weight - b.specs.weight) > 30) {
+    const light = a.specs.weight < b.specs.weight ? a : b;
+    parts.push(`the ${esc(light.name)} is lighter`);
+  }
+  return parts.join("; ") + ".";
+}
+
+function resultsNarrative(r) {
+  const n = r.inBudget.length;
+  if (!n) {
+    const cheapest = PRODUCTS.filter(p => categoryFit(p, state.types) >= 0.55).sort((a, b) => a.price - b.price)[0];
+    return `<p>Nothing in this catalogue matches within ${budgetText(state.budget).toLowerCase()}. ${cheapest ? `The lowest-priced suitable option is the ${esc(fullName(cheapest))} at ${fmt(cheapest.price)}.` : ""} Would you like to increase your budget, or look at a different device type?</p>`;
+  }
+  const wanted = [...state.types].filter(k => k !== "notsure");
+  let typeNote = "";
+  if (wanted.length && !r.inBudget.some(x => [x.p.category, ...(x.p.also || [])].some(c => wanted.includes(c)))) {
+    const label = wanted.map(k => TYPE_OPTIONS.find(o => o.key === k).label.toLowerCase()).join(" or ");
+    const cheapest = PRODUCTS.filter(p => [p.category, ...(p.also || [])].some(c => wanted.includes(c))).sort((a, b) => a.price - b.price)[0];
+    typeNote = `<p>There are no ${esc(label)} within ${budgetText(state.budget).toLowerCase()} in this catalogue${cheapest ? `; the lowest-priced is the ${esc(fullName(cheapest))} at ${fmt(cheapest.price)}` : ""}. Below are the closest alternatives instead.</p>`;
+  }
+  const top = r.inBudget[0].p, second = r.inBudget[1]?.p;
+  const nIn = r.inBudget.filter(x => x.budget === "in").length, nUnder = n - nIn;
+  const countText = !state.budget ? `<strong>${n} option${n > 1 ? "s" : ""}</strong> across all prices`
+    : nIn ? `<strong>${nIn} option${nIn > 1 ? "s" : ""}</strong> within ${budgetText(state.budget).toLowerCase()}${nUnder ? `, plus ${nUnder} that cost${nUnder > 1 ? "" : "s"} less than your range` : ""}`
+    : `nothing priced inside ${budgetText(state.budget).toLowerCase()}, but <strong>${nUnder} cheaper option${nUnder > 1 ? "s" : ""}</strong> that suit${nUnder > 1 ? "" : "s"} your needs`;
+  let s = typeNote + `<p>I found ${countText}. The <strong>${esc(fullName(top))}</strong> (${fmt(top.price)}) ranks first: ${esc(reasonFor(top).replace(/\.$/, "").toLowerCase())}.</p>`;
+  if (second) s += `<p>${comparisonSentence(top, second)}</p>`;
+  if (r.over.length) s += `<p>${r.over.length} more option${r.over.length > 1 ? "s sit" : " sits"} just above your budget; I've listed ${r.over.length > 1 ? "them" : "it"} separately and marked ${r.over.length > 1 ? "them" : "it"} as over budget.</p>`;
+  return s;
+}
+
+/* Chat rendering */
+function addMsg(role, html, opts = {}) {
+  const log = $("#chatLog");
+  const m = document.createElement("div");
+  m.className = "msg " + role + (opts.wide ? " wide" : "");
+  if (role === "user") m.textContent = html; else m.innerHTML = html;
+  log.appendChild(m);
+  if (role === "ai" && opts.wide) log.scrollTop = m.offsetTop - 12; else log.scrollTop = log.scrollHeight;
+}
+async function sendChat(text) {
+  if (!text.trim()) return;
+  addMsg("user", text);
+  const typing = document.createElement("div"); typing.className = "msg ai"; typing.innerHTML = '<span class="typing" aria-label="Assistant is typing"><i></i><i></i><i></i></span>';
+  $("#chatLog").appendChild(typing); $("#chatLog").scrollTop = 1e6;
+  const waiting = state.conv.stage === "budget";
+  await new Promise(r => setTimeout(r, 600 + Math.min(900, text.length * 12) + (waiting ? 500 : 0)));
+  let res;
+  try { res = await LocalAssistant.respond(text); }
+  catch (e) { console.error(e); res = { html: "<p>I couldn't process that one. Could you rephrase it?</p>" }; }
+  typing.remove();
+  addMsg("ai", res.html, { wide: res.wide });
+}
+const GREETING = "<p>Hi, I'm your Night Vision Australia product specialist. <strong>Which device are you looking for today?</strong></p><p>You can name a type, like a thermal monocular or night vision binoculars, or just tell me what you'd like to see at night and where.</p>";
+
+/* =========================================================
+   STATE SYNC – keeps the results toolbar, preference strip
+   and enquiry summary in line with what the chat has learned
+   ========================================================= */
+function syncState() {
+  $("#fBudget").value = state.budget ? (state.budget.key === "custom" ? "custom" : state.budget.key) : "any";
+  renderPrefStrip(); renderEnquiryPrefs();
+}
+function setBudget(b) {
+  state.budget = b ? { ...b, label: b.key === "custom" ? budgetText(b) : b.label } : null;
+  const customOpt = $("#fBudget").querySelector('option[value="custom"]');
+  if (state.budget?.key === "custom") { customOpt.hidden = false; customOpt.textContent = "Custom: " + budgetText(state.budget); }
+}
+
+/* =========================================================
+   RESULTS
+   ========================================================= */
+function runRecommendation(opts = {}) {
+  state.hasRun = true; state.view = "matches";
+  $$(".view-tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === "matches"));
+  state.lastResults = recommend();
+  if (opts.quiet) { renderResults(); return; }
+  // loading state
+  $("#aiNote").innerHTML = "";
+  $("#resultsArea").innerHTML = `<div class="loading-line"><span class="spinner"></span>Checking ${PRODUCTS.length} catalogue products against your budget and priorities…</div><div class="grid">${'<div class="skeleton"></div>'.repeat(3)}</div>`;
+  if (!opts.fromChat) $("#results").scrollIntoView();
+  setTimeout(renderResults, 850);
+}
+
+function cardHTML(r, badges = []) {
+  const p = r.p; const s = p.specs; const b = r.budget;
+  const bmText = { in: "Within budget", under: "Below your range", over: "Over budget" }[b];
+  const spec = (k, v) => `<div><dt>${k}</dt><dd>${v == null ? '<span style="color:var(--faint)">Not specified</span>' : esc(v)}</dd></div>`;
+  const pct = Math.round(r.score * 100);
+  const badgeCls = { "Best Overall Match": "", "Best Value": "value", "Best Features Within Budget": "feat" };
+  return `<article class="card ${badges.includes("Best Overall Match") ? "top" : ""}" data-id="${p.id}">
+    <div class="card-media">${mediaHTML(p)}
+      ${badges.length ? `<div class="badges">${badges.map(x => `<span class="badge ${badgeCls[x]}">${x}</span>`).join("")}</div>` : ""}
+      ${p.wasPrice ? `<span class="sale">Sale</span>` : ""}
+    </div>
+    <div class="card-body">
+      <div class="card-meta">${esc(p.brand)} · ${esc(catLabel(p))}</div>
+      <h3>${esc(p.name)}</h3>
+      <div class="price-row"><span class="price num">${fmt(p.price)}<small>AUD</small></span>${p.wasPrice ? `<span class="was num">${fmt(p.wasPrice)}</span>` : ""}${state.budget ? `<span class="bm ${b}">${bmText}</span>` : ""}</div>
+      <dl class="specs">
+        ${spec("Sensor", s.sensor ?? null)}
+        ${spec("Detection range", s.detection ? s.detection.toLocaleString("en-AU") + " m" : null)}
+        ${spec("Weight", s.weight ? (s.weightNote || s.weight + " g") : null)}
+        ${spec("Battery", s.battery ?? null)}
+      </dl>
+      <p class="why"><b>Why it fits:</b> ${esc(reasonFor(p))}</p>
+      ${state.view === "matches" && state.hasRun ? `<div class="matchbar"><span>Match</span><span class="track"><span class="fill" style="width:${pct}%"></span></span><span class="num">${pct}%</span></div>` : ""}
+      <div class="verify ${p.verification.status}">${p.verification.status === "verified" ? "Retailer data, 14 Oct 2026" : "Partial data: name and price only"}</div>
+      <div class="card-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-action="details" data-id="${p.id}">View Details</button>
+        <a class="btn btn-primary btn-sm" href="${esc(p.url)}" target="_blank" rel="noopener" style="margin-left:auto">View Product</a>
+      </div>
+    </div>
+  </article>`;
+}
+
+function applyViewFilters(list) {
+  const q = state.search.trim().toLowerCase();
+  let out = list.filter(r => {
+    const p = r.p;
+    if (q && !(`${p.brand} ${p.name} ${catLabel(p)}`.toLowerCase().includes(q))) return false;
+    if (state.catFilter !== "all") {
+      if (state.catFilter === "fam:thermal" && CATEGORIES[p.category].family !== "thermal") return false;
+      if (state.catFilter === "fam:nightvision" && CATEGORIES[p.category].family !== "nightvision" && !(p.also || []).some(c => CATEGORIES[c].family === "nightvision")) return false;
+      if (!state.catFilter.startsWith("fam:") && ![p.category, ...(p.also || [])].includes(state.catFilter)) return false;
+    }
+    return true;
+  });
+  const key = state.rankPrio;
+  const sorters = {
+    relevance: (a, b) => effectiveScore(b.p, key) - effectiveScore(a.p, key),
+    "price-asc": (a, b) => a.p.price - b.p.price,
+    "price-desc": (a, b) => b.p.price - a.p.price,
+    range: (a, b) => (b.p.specs.detection || -1) - (a.p.specs.detection || -1),
+    weight: (a, b) => (a.p.specs.weight || 1e9) - (b.p.specs.weight || 1e9),
+    priority: (a, b) => priorityFit(b.p, state.prios) - priorityFit(a.p, state.prios)
+  };
+  return out.sort(sorters[state.sort] || sorters.relevance);
+}
+
+function renderResults() {
+  const area = $("#resultsArea"); const note = $("#aiNote");
+  if (state.view === "all") {
+    $("#resultsTitle").textContent = "All products";
+    $("#resultsSub").textContent = `${PRODUCTS.length} products in the demo catalogue. Search, filter and add any of them to a comparison.`;
+    note.innerHTML = "";
+    const list = applyViewFilters(PRODUCTS.map(p => ({ p, ...matchScore(p) })).filter(r => !state.budget || r.budget !== "over" || $("#fBudget").value === "any"));
+    area.innerHTML = list.length ? `<div class="grid">${list.map(r => cardHTML(r)).join("")}</div>` : emptyHTML("No products match those filters", "Try a different search term or clear the category filter.", [["Clear filters", "clear-filters"]]);
+    return;
+  }
+  $("#resultsTitle").textContent = "Your matches";
+  if (!state.hasRun) {
+    $("#resultsSub").textContent = "Tell the product specialist what you need and your matches appear here, or browse the full demo catalogue.";
+    note.innerHTML = ""; area.innerHTML = emptyHTML("No recommendations yet", "Tell the product specialist which device you need and your budget, and your matches will appear here. You can also browse every product.", [["Chat with the specialist", "goto-rec"], ["Browse all products", "view-all"]]);
+    return;
+  }
+  const r = state.lastResults;
+  $("#resultsSub").textContent = "Ranked for your requirements. Change the budget or priority here without starting again.";
+  note.innerHTML = `<div class="ai-note"><div class="who">Product specialist (simulated)</div>${categoryAdvice()}${resultsNarrative(r)}</div>`;
+  const inList = applyViewFilters(r.inBudget);
+  let html = "";
+  if (!r.inBudget.length) {
+    const alts = PRODUCTS.filter(p => categoryFit(p, state.types) >= 0.55 && useFit(p, state.uses) > 0).sort((a, b) => a.price - b.price).slice(0, 3);
+    html += emptyHTML(`Nothing suitable within ${budgetText(state.budget).toLowerCase()}`,
+      alts.length ? `The closest suitable devices start at ${fmt(alts[0].price)}. You can raise your budget, try a different device type, or ask the team about options outside this demo catalogue.` : "Try widening the device type or use case.",
+      [alts.length ? [`Raise budget to ${fmt(Math.ceil(alts[0].price / 100) * 100)}`, "raise-to", Math.ceil(alts[0].price / 100) * 100] : null, ["Change device type", "goto-rec"], ["Ask our team", "scroll-enquiry"]].filter(Boolean));
+  } else if (!inList.length) {
+    html += emptyHTML("Your filters hide every match", "Clear the search or category filter to see your recommendations again.", [["Clear filters", "clear-filters"]]);
+  } else {
+    html += `<div class="grid">${inList.map(x => cardHTML(x, r.badges[x.p.id] || [])).join("")}</div>`;
+  }
+  if (r.over.length) {
+    html += `<div class="stretch-head"><h3>Above your budget</h3><p>Shown for reference only. These cost more than your ${fmt(state.budget.max)} maximum.</p></div>`;
+    html += `<div class="grid">${applyViewFilters(r.over).map(x => cardHTML(x)).join("")}</div>`;
+  }
+  area.innerHTML = html;
+}
+function emptyHTML(title, body, actions = []) {
+  return `<div class="empty"><h3>${esc(title)}</h3><p>${esc(body)}</p><div class="row">${actions.map(([l, a, v]) => `<button class="btn ${a === "raise-to" ? "btn-primary" : "btn-ghost"} btn-sm" type="button" data-action="${a}" ${v ? `data-value="${v}"` : ""}>${esc(l)}</button>`).join("")}</div></div>`;
+}
+function renderPrefStrip() {
+  const pills = [];
+  [...state.types].forEach(k => pills.push(TYPE_OPTIONS.find(o => o.key === k).label));
+  [...state.uses].forEach(k => pills.push(USE_OPTIONS.find(o => o.key === k).label));
+  if (state.budget && !state.budget.pending) pills.push(budgetText(state.budget));
+  [...state.prios].filter(k => k !== "notsure").forEach(k => pills.push(PRIO_OPTIONS.find(o => o.key === k).label));
+  $("#prefStrip").innerHTML = pills.length ? `<span>Your preferences:</span>${pills.map(p => `<span class="pill">${esc(p)}</span>`).join("")}` : "";
+}
+function buildToolbar() {
+  const cat = $("#fCat");
+  cat.innerHTML = `<option value="all">All categories</option><option value="fam:thermal">All thermal</option><option value="fam:nightvision">All night vision</option>` +
+    Object.entries(CATEGORIES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+  $("#fBudget").innerHTML = `<option value="any">Any budget</option>` + BUDGET_OPTIONS.filter(o => o.key !== "custom").map(o => `<option value="${o.key}">${o.label}</option>`).join("") + `<option value="custom" hidden>Custom</option>`;
+  $("#fPrio").innerHTML = COMPARE_PRIORITIES.map(o => `<option value="${o.key}">${o.label}</option>`).join("");
+}
+
+/* =========================================================
+   COMPARISON
+   ========================================================= */
+/* =========================================================
+   MODAL
+   ========================================================= */
+let lastFocus = null;
+function openModal(id) {
+  const p = byId(id); if (!p) return;
+  lastFocus = document.activeElement;
+  const s = p.specs; const NS = '<span style="color:#98A1AE">Not specified</span>';
+  const rows = [["Category", catLabel(p)], ["Sensor", s.sensor], ["Thermal sensitivity (NETD)", s.netd ? `<${s.netd} mK` : null], ["Lens", s.lens], ["Field of view", s.fov], ["Detection range", s.detection ? s.detection.toLocaleString("en-AU") + " m" : null],
+    ["Laser rangefinder", s.lrfRange ? s.lrfRange.toLocaleString("en-AU") + " m" : (p.features.lrf ? "Yes" : null)], ["Magnification", s.magnification], ["Display", s.display], ["Battery", s.battery], ["Weight", s.weight ? (s.weightNote || s.weight + " g") : null], ["Weather protection", s.protection]];
+  $("#modalBox").innerHTML = `
+    <button class="modal-close" type="button" data-action="close-modal" aria-label="Close">×</button>
+    <div class="m-grid">
+      <div class="m-media">${mediaHTML(p)}</div>
+      <div class="m-body">
+        <div class="meta">${esc(p.brand)}</div>
+        <h3 id="mTitle">${esc(p.name)}</h3>
+        <div class="price-row"><span class="price num" style="color:var(--paper-text)">${fmt(p.price)}<small>AUD</small></span>${p.wasPrice ? `<span class="was num">${fmt(p.wasPrice)}</span>` : ""}${state.budget ? `<span class="bm ${budgetPosition(p, state.budget).status}">${{ in: "Within budget", under: "Below your range", over: "Over budget" }[budgetPosition(p, state.budget).status]}</span>` : ""}</div>
+        <table class="m-specs"><tbody>${rows.map(([k, v]) => `<tr><th scope="row">${k}</th><td>${v == null ? NS : esc(v)}</td></tr>`).join("")}</tbody></table>
+        <div class="m-lists"><div><h4>Strengths</h4><ul>${p.strengths.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div><div><h4>Limitations</h4><ul>${p.limitations.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
+        <div class="m-verify">${p.verification.status === "verified" ? "Data from the retailer's product page" : "Partial data: name and price from a retailer listing"}, captured 14 Oct 2026. ${esc(p.verification.note)} Confirm current price and stock with the team.</div>
+        <div class="m-actions">
+          <a class="btn btn-primary" href="${esc(p.url)}" target="_blank" rel="noopener">View Product</a>
+          <button class="btn btn-ghost" type="button" data-action="enquire" data-id="${p.id}">Enquire about this product</button>
+        </div>
+      </div>
+    </div>`;
+  $("#modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+  $(".modal-close").focus();
+}
+function closeModal() { $("#modal").classList.remove("open"); document.body.style.overflow = ""; lastFocus?.focus(); }
+
+/* =========================================================
+   ENQUIRY (local only – nothing leaves the browser)
+   ========================================================= */
+let enquiryProduct = null;
+function renderEnquiryPrefs() {
+  const el = $("#enqPrefs"); if (!el) return;
+  const list = (set, opts) => [...set].map(k => opts.find(o => o.key === k)?.label).filter(Boolean).join(", ");
+  const rows = [["Looking for", list(state.types, TYPE_OPTIONS)], ["Uses", list(state.uses, USE_OPTIONS)], ["Budget", state.budget && !state.budget.pending ? budgetText(state.budget) : ""],
+    ["Priorities", list(new Set([...state.prios].filter(k => k !== "notsure")), PRIO_OPTIONS)], ["Product", enquiryProduct ? fullName(byId(enquiryProduct)) : ""], ["Notes", state.notes]].filter(r => r[1]);
+  el.innerHTML = `<h4>Your preferences (included with the enquiry)</h4>${rows.length ? `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : `<p class="muted" style="color:var(--paper-muted)">Nothing selected yet. Use the recommender and your choices will appear here.</p>`}`;
+}
+function submitEnquiry(e) {
+  e?.preventDefault?.();
+  const name = $("#eName").value.trim(), email = $("#eEmail").value.trim();
+  let ok = true;
+  $("#eNameErr").textContent = name ? "" : (ok = false, "Enter your name.");
+  $("#eEmailErr").textContent = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? "" : (ok = false, "Enter a valid email address, like name@example.com.");
+  if (!ok) { (name ? $("#eEmail") : $("#eName")).focus(); return; }
+  const btn = $("#enqSend");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="border-color:rgba(255,255,255,.4);border-top-color:#fff"></span> Sending';
+  setTimeout(() => {
+    $("#enqWrap").innerHTML = `<div class="confirm" tabindex="-1" id="enqDone"><div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h3>Enquiry sent</h3><p>Thanks, ${esc(name.split(" ")[0])}. In the live site, the team would reply to ${esc(email)}, usually within one business day.</p><p>Demo note: nothing was sent or stored.</p>
+      <button class="btn btn-ghost btn-sm" style="margin-top:16px;color:var(--paper-text);border-color:var(--paper-line)" type="button" data-action="reset-enquiry">Send another enquiry</button></div>`;
+    $("#enqDone").focus();
+  }, 900);
+}
+const ENQ_FORM_HTML = () => $("#enqWrap").dataset.tpl;
+
+/* =========================================================
+   HERO VIEWFINDER – one SVG scene drawn three ways
+   ========================================================= */
+function scene(mode) {
+  const P = {
+    eye:     { sky1:"#0A0E16", sky2:"#111722", hill:"#080B10", ground:"#06080C", tree:"#05070A", fence:"#0A0D12", roo:"#0B0E13", rooBlur:0, glow:0 },
+    nv:      { sky1:"#3E4440", sky2:"#5F6863", hill:"#2A2F2C", ground:"#4A514D", tree:"#1A1E1C", fence:"#7A837E", roo:"#6E7671", rooBlur:0, glow:0 },
+    thermal: { sky1:"#0B0B0D", sky2:"#151517", hill:"#262629", ground:"#2E2E32", tree:"#3E3E43", fence:"#3B3B3F", roo:"#FFFFFF", rooBlur:1.2, glow:1 }
+  }[mode];
+  // Upright kangaroo in profile, origin at the feet
+  const roo = (x, y, s, flip = false) => `<g transform="translate(${x} ${y}) scale(${flip ? -s : s} ${s})" fill="${P.roo}" ${P.rooBlur ? `filter="url(#hb-${mode})"` : ""}>
+      <path d="M-2 0 C-5 -6 -9 -14 -9 -24 C-9 -34 -5 -42 1 -46 C4 -48 6 -50 7 -53 L5.5 -61 L9 -54.5 L10 -62 L12.5 -54 C15 -54 17.5 -52 19 -50 C17 -48 13 -48 10.5 -47 C9.5 -42 9.5 -38 10.5 -34 L15 -30 L14 -28.5 L8.5 -31 C9.5 -22 10.5 -14 8.5 -6 C12 -3.5 18 -2 23 0 Z"/>
+      <path d="M-6 -9 C-16 -5 -27 -1 -38 1 C-27 1 -15 0 -3 -2 Z"/>
+    </g>`;
+  const fox = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})" fill="${mode === "thermal" ? "#E8E8E8" : P.roo}" ${P.rooBlur ? `filter="url(#hb-${mode})"` : ""}>
+      <ellipse cx="0" cy="0" rx="14" ry="6"/><ellipse cx="15" cy="-5" rx="5" ry="4"/><path d="M17 -9l2-5 2 5zM13 -9l1-5 2 5z"/><path d="M-13 0 Q-28 2 -32 -4 Q-24 -2 -13 -4Z"/>
+      <rect x="-10" y="4" width="2.2" height="8"/><rect x="8" y="4" width="2.2" height="8"/>
+    </g>`;
+  // Eucalypt silhouette: forked trunk with sparse, clumped canopy
+  const tree = (x, base, h, w) => {
+    const clumps = [[-.42,-.66,.2],[-.3,-.78,.24],[-.12,-.9,.22],[.08,-.97,.2],[.28,-.86,.24],[.44,-.7,.18],[.1,-.74,.16],[-.2,-.62,.14],[.34,-.6,.13],[-.05,-1.05,.13]];
+    return `<g fill="${P.tree}" ${mode === "thermal" ? 'filter="url(#tb-thermal)" opacity=".8"' : ""}>
+      <path d="M${x - 3} ${base} C${x - 2} ${base - h * .3} ${x - 4} ${base - h * .45} ${x - w * .3} ${base - h * .72} L${x - w * .28} ${base - h * .74} C${x - 1} ${base - h * .5} ${x + 1} ${base - h * .5} ${x + w * .25} ${base - h * .82} L${x + w * .27} ${base - h * .8} C${x + 3} ${base - h * .45} ${x + 2} ${base - h * .3} ${x + 3} ${base}Z"/>
+      ${clumps.map(([dx, dy, r]) => `<ellipse cx="${x + dx * w}" cy="${base + dy * h}" rx="${r * w * .62}" ry="${r * w * .38}"/>`).join("")}</g>`;
+  };
+  const posts = Array.from({ length: 14 }, (_, i) => { const x = 20 + i * 46; return `<rect x="${x}" y="${300 - i * 1.2}" width="3" height="26" fill="${P.fence}"/>`; }).join("");
+  return `<svg viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="sky-${mode}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.sky1}"/><stop offset="1" stop-color="${P.sky2}"/></linearGradient>
+      <filter id="hb-${mode}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${P.rooBlur}"/></filter>
+      <filter id="tb-${mode}"><feGaussianBlur stdDeviation="1.4"/></filter>
+      <radialGradient id="ir-${mode}" cx=".5" cy=".55" r=".55"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>
+      <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="600" height="400" fill="url(#sky-${mode})"/>
+    ${mode === "eye" ? `<circle cx="470" cy="70" r="1.2" fill="#9AA"/><circle cx="120" cy="40" r="1" fill="#8899AA"/><circle cx="300" cy="90" r=".9" fill="#8899AA"/>` : ""}
+    <path d="M0 250 Q120 215 240 238 T470 226 T600 240 V400 H0Z" fill="${P.hill}"/>
+    ${tree(70, 268, 150, 110)}${tree(520, 262, 175, 130)}${tree(410, 250, 90, 70)}
+    <path d="M0 290 Q200 270 600 285 V400 H0Z" fill="${P.ground}"/>
+    <rect x="0" y="306" width="600" height="2" fill="${P.fence}" opacity=".7"/><rect x="0" y="316" width="600" height="1.5" fill="${P.fence}" opacity=".6"/>
+    ${posts}
+    ${P.glow ? `<ellipse cx="303" cy="262" rx="50" ry="44" fill="url(#glow)"/><ellipse cx="389" cy="272" rx="34" ry="30" fill="url(#glow)"/><ellipse cx="150" cy="352" rx="50" ry="24" fill="url(#glow)"/>` : ""}
+    ${roo(300, 282, 1.05)}${roo(392, 284, .72, true)}${fox(150, 352, 1.5)}
+    ${mode === "nv" ? `<rect width="600" height="400" fill="url(#ir-nv)"/>` : ""}
+    ${mode === "thermal" ? `<rect width="600" height="400" fill="#000" opacity=".06"/>` : ""}
+  </svg>`;
+}
+const VF = {
+  eye: { label: "Unaided", caption: "Naked eye on a moonless night. Two kangaroos and a fox are out there, about 150 to 300 metres away." },
+  nv: { label: "Night · IR on", caption: "Digital night vision with an IR illuminator: terrain and fence lines come back, but animals blend in at distance." },
+  thermal: { label: "White hot", caption: "Thermal imaging: body heat makes all three animals obvious, even against the bush. This is why thermal leads for spotting." }
+};
+function setVF(mode) {
+  const vf = $("#viewfinder"); vf.dataset.mode = mode;
+  $$(".vf-layer", vf).forEach(l => l.classList.toggle("on", l.dataset.layer === mode));
+  $$(".vf-modes button", vf).forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  $("#vfMode").textContent = VF[mode].label; $("#vfCaption").textContent = VF[mode].caption;
+}
+
+/* =========================================================
+   GLOBAL EVENTS (delegated)
+   ========================================================= */
+function resetAll({ clearLog = true } = {}) {
+  state.types.clear(); state.uses.clear(); state.prios.clear(); state.budget = null; state.notes = ""; state.hasRun = false; state.lastResults = null;
+  state.search = ""; state.catFilter = "all"; state.sort = "relevance"; state.rankPrio = "match";
+  state.conv = { stage: "device", budgetFlexible: false, shown: [] };
+  $("#fSearch").value = ""; $("#fCat").value = "all"; $("#fSort").value = "relevance"; $("#fPrio").value = "match";
+  syncState(); renderResults();
+  if (clearLog) { $("#chatLog").innerHTML = ""; addMsg("ai", GREETING); toast("Started over"); }
+}
+function focusChat() { setTimeout(() => $("#chatInput").focus({ preventScroll: true }), 450); }
+
+document.addEventListener("click", e => {
+  if (e.target.closest('a[href="#recommender"]')) focusChat();
+  const vfb = e.target.closest(".vf-modes button"); if (vfb) { setVF(vfb.dataset.mode); return; }
+  const vt = e.target.closest("[data-view]"); if (vt) { state.view = vt.dataset.view; $$(".view-tabs button").forEach(b => b.setAttribute("aria-pressed", b === vt)); renderResults(); return; }
+  const nav = e.target.closest("[data-nav]");
+  if (nav) {
+    $$("[data-nav]").forEach(a => a.classList.toggle("active", a.dataset.nav === nav.dataset.nav && a.closest(".nav")));
+    $("#mobileNav").classList.remove("open"); $(".menu-btn").setAttribute("aria-expanded", "false");
+    const k = nav.dataset.nav;
+    if (k === "thermal" || k === "nightvision") { state.view = "all"; state.catFilter = k === "thermal" ? "fam:thermal" : "fam:nightvision"; $("#fCat").value = state.catFilter; $$(".view-tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === "all")); renderResults(); }
+    if (k === "accessories") { e.preventDefault(); toast("Accessories aren't in this demo catalogue. On the live site this opens the accessories range."); }
+    return;
+  }
+  if (e.target.closest(".mobile-nav a.btn")) { $("#mobileNav").classList.remove("open"); $(".menu-btn").setAttribute("aria-expanded", "false"); }
+  const a = e.target.closest("[data-action]"); if (!a) return;
+  const id = a.dataset.id;
+  switch (a.dataset.action) {
+    case "details": openModal(id); break;
+    case "close-modal": closeModal(); break;
+    case "enquire": enquiryProduct = id; renderEnquiryPrefs(); closeModal(); $("#enquiry").scrollIntoView(); setTimeout(() => $("#eName")?.focus({ preventScroll: true }), 500); break;
+    case "restart": resetAll(); $("#recommender").scrollIntoView(); focusChat(); break;
+    case "revise": case "goto-rec": $("#recommender").scrollIntoView(); focusChat(); break;
+    case "see-results": $("#results").scrollIntoView(); break;
+    case "view-all": state.view = "all"; $$(".view-tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === "all")); renderResults(); $("#results").scrollIntoView(); break;
+    case "clear-filters": state.search = ""; state.catFilter = "all"; $("#fSearch").value = ""; $("#fCat").value = "all"; renderResults(); break;
+    case "raise-to": setBudget({ key: "custom", label: "Custom", min: 0, max: +a.dataset.value }); syncState(); runRecommendation({ quiet: true }); toast("Budget raised to " + fmt(+a.dataset.value)); addMsg("ai", `<p>I've raised your budget to ${fmt(+a.dataset.value)} and refreshed the results.</p>`); break;
+    case "scroll-enquiry": $("#enquiry").scrollIntoView(); break;
+    case "ask": $("#recommender").scrollIntoView(); sendChat(a.dataset.q); focusChat(); break;
+    case "cart": toast("Cart is a visual element in this demo."); break;
+    case "reset-enquiry": $("#enqWrap").innerHTML = ENQ_FORM_HTML(); bindEnquiry(); renderEnquiryPrefs(); break;
+  }
+});
+$(".menu-btn").addEventListener("click", function () { const open = $("#mobileNav").classList.toggle("open"); this.setAttribute("aria-expanded", open); });
+$("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+document.addEventListener("keydown", e => {
+  if (!$("#modal").classList.contains("open")) return;
+  if (e.key === "Escape") closeModal();
+  if (e.key === "Tab") { // simple focus trap
+    const f = $$("#modalBox a, #modalBox button"); if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  }
+});
+
+/* Deliberately not using a form submit: sandboxed previews and some embeds block form
+   submission, which silently stops the chat. Click plus the Enter key works everywhere. */
+function sendFromInput() { const i = $("#chatInput"); const v = i.value; if (!v.trim()) return; i.value = ""; sendChat(v); }
+$("#chatSend").addEventListener("click", sendFromInput);
+$("#chatInput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendFromInput(); } });
+$("#fSearch").addEventListener("input", e => { state.search = e.target.value; if (state.view === "matches" && !state.hasRun && e.target.value) { state.view = "all"; $$(".view-tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === "all")); } renderResults(); });
+$("#fCat").addEventListener("change", e => { state.catFilter = e.target.value; renderResults(); });
+$("#fSort").addEventListener("change", e => { state.sort = e.target.value; renderResults(); });
+$("#fPrio").addEventListener("change", e => { state.rankPrio = e.target.value; state.sort = "relevance"; $("#fSort").value = "relevance"; renderResults(); toast("Ranked by " + e.target.selectedOptions[0].text.toLowerCase()); });
+$("#fBudget").addEventListener("change", e => {
+  const v = e.target.value;
+  if (v === "custom") return;
+  setBudget(v === "any" ? null : BUDGET_OPTIONS.find(o => o.key === v));
+  syncState();
+  if (state.hasRun) { runRecommendation({ quiet: true }); toast("Budget updated: " + budgetText(state.budget)); addMsg("ai", `<p>I've changed your budget to ${esc(budgetText(state.budget).toLowerCase())} and refreshed the results.</p>`); } else renderResults();
+});
+function bindEnquiry() {
+  $("#enqSend").addEventListener("click", submitEnquiry);
+  $$("#enqForm input").forEach(i => i.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submitEnquiry(); } }));
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(function init() {
+  $("#enqWrap").dataset.tpl = $("#enqWrap").innerHTML;
+  buildToolbar();
+  ["eye", "nv", "thermal"].forEach(m => $(`.vf-layer[data-layer="${m}"]`).innerHTML = scene(m));
+  setVF("thermal");
+  syncState(); renderResults(); bindEnquiry();
+  addMsg("ai", GREETING);
+})();
+</script>
+</body>
+</html>
